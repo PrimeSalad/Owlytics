@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { UserPlus, Search, Edit2, Trash2, QrCode } from 'lucide-react';
+import { UserPlus, Search, Edit2, Trash2, QrCode, Download, Users as UsersIcon } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,6 +9,7 @@ import { PageWrapper } from '@/components/layout';
 import { Button, Card, CardBody, Modal, Input, Badge, Spinner } from '@/components/ui';
 import { api } from '@/lib/api';
 import type { Student } from '@/types';
+
 
 const schema = z.object({
   studentId: z.string().min(1, 'Required'),
@@ -22,7 +23,7 @@ type FormData = z.infer<typeof schema>;
 
 const YEAR_LABELS: Record<number, string> = { 1: '1st Year', 2: '2nd Year', 3: '3rd Year', 4: '4th Year' };
 
-export function StudentsPage() {
+export function StudentsPage({ isComponent = false }: { isComponent?: boolean }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [yearFilter, setYearFilter] = useState('');
@@ -52,35 +53,40 @@ export function StudentsPage() {
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 15);
 
-  return (
-    <PageWrapper
-      title="Students"
-      description={`${total} students total`}
-      actions={
-        <Button size="sm" onClick={() => setAddOpen(true)}>
-          <UserPlus className="h-4 w-4" />Add Student
-        </Button>
-      }
-    >
+  const content = (
+    <div className="space-y-4">
       {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-          <input
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search name or ID…"
-            className="w-full rounded border border-surface-border bg-white pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-brand-400"
-          />
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <div className="flex gap-2 flex-1 w-full max-w-xl">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <input
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Search name or ID…"
+              className="w-full rounded-lg border border-surface-border bg-white pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+            />
+          </div>
+          <select
+            value={yearFilter}
+            onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}
+            className="rounded-lg border border-surface-border bg-white px-3 py-2 text-sm font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
+          >
+            <option value="">All Years</option>
+            {[1,2,3,4].map((y) => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
+          </select>
         </div>
-        <select
-          value={yearFilter}
-          onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}
-          className="rounded border border-surface-border bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
-        >
-          <option value="">All Years</option>
-          {[1,2,3,4].map((y) => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
-        </select>
+        
+        {!isComponent && (
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <UserPlus className="h-4 w-4" /> Add Student
+          </Button>
+        )}
+        {isComponent && (
+           <Button size="sm" variant="secondary" onClick={() => setAddOpen(true)}>
+            <UserPlus className="h-3.5 w-3.5" /> Add Student
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -88,44 +94,73 @@ export function StudentsPage() {
           {isLoading ? (
             <div className="flex justify-center py-16"><Spinner /></div>
           ) : students.length === 0 ? (
-            <p className="py-16 text-center text-sm text-slate-400">No students found.</p>
+            <div className="py-20 text-center">
+              <div className="h-12 w-12 bg-surface-muted rounded-full flex items-center justify-center mx-auto mb-3">
+                <UsersIcon className="h-6 w-6 text-slate-300" />
+              </div>
+              <p className="text-sm text-slate-500">No students found.</p>
+            </div>
+
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-surface-muted border-b border-surface-border">
-                  <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
-                    <th className="px-5 py-3 font-medium">Student</th>
-                    <th className="px-5 py-3 font-medium">ID</th>
-                    <th className="px-5 py-3 font-medium">Section</th>
-                    <th className="px-5 py-3 font-medium">Year</th>
-                    <th className="px-5 py-3 font-medium text-right">Actions</th>
+                <thead>
+                  <tr className="bg-surface-muted/50 border-b border-surface-border text-left">
+                    <th className="px-6 py-4 font-bold text-slate-500 text-[10px] uppercase tracking-wider">Student</th>
+                    <th className="px-6 py-4 font-bold text-slate-500 text-[10px] uppercase tracking-wider">ID Number</th>
+                    <th className="px-6 py-4 font-bold text-slate-500 text-[10px] uppercase tracking-wider">Section</th>
+                    <th className="px-6 py-4 font-bold text-slate-500 text-[10px] uppercase tracking-wider">Year Level</th>
+                    <th className="px-6 py-4 font-bold text-slate-500 text-[10px] uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-border">
                   {students.map((s) => (
-                    <tr key={s._id} className="hover:bg-surface-muted transition-colors">
-                      <td className="px-5 py-3">
-                        <p className="font-medium text-slate-800">{s.name.first} {s.name.last}</p>
-                        <p className="text-xs text-slate-400">{s.email}</p>
+                    <tr key={s._id} className="hover:bg-surface-muted/30 transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs">
+                            {s.name.first[0]}{s.name.last[0]}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-800 text-sm">{s.name.first} {s.name.last}</p>
+                            <p className="text-[11px] text-slate-400">{s.email}</p>
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-5 py-3 text-slate-600 font-mono text-xs">{s.studentId}</td>
-                      <td className="px-5 py-3 text-slate-600">{s.section}</td>
-                      <td className="px-5 py-3">
-                        <Badge variant="default">{YEAR_LABELS[s.yearLevel]}</Badge>
+                      <td className="px-6 py-4">
+                        <span className="font-mono text-[11px] bg-surface-muted px-2 py-1 rounded text-slate-600 border border-surface-border">
+                          {s.studentId}
+                        </span>
                       </td>
-                      <td className="px-5 py-3 text-right space-x-2">
-                        <button onClick={() => setQrStudent(s)} className="text-slate-400 hover:text-brand-600 transition-colors" title="View QR">
-                          <QrCode className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => setEditStudent(s)} className="text-slate-400 hover:text-brand-600 transition-colors">
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => confirm(`Remove ${s.name.first} ${s.name.last}?`) && deleteMutation.mutate(s._id)}
-                          className="text-slate-400 hover:text-danger transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      <td className="px-6 py-4 text-slate-600 font-medium">{s.section}</td>
+                      <td className="px-6 py-4">
+                        <Badge variant="default" className="bg-brand-50 text-brand-700 border-brand-100">
+                          {YEAR_LABELS[s.yearLevel]}
+                        </Badge>
+                      </td>
+
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={() => setQrStudent(s)} 
+                            className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all" 
+                            title="View QR"
+                          >
+                            <QrCode className="h-4 w-4" />
+                          </button>
+                          <button 
+                            onClick={() => setEditStudent(s)} 
+                            className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => confirm(`Remove ${s.name.first} ${s.name.last}?`) && deleteMutation.mutate(s._id)}
+                            className="p-1.5 text-slate-400 hover:text-danger hover:bg-danger-50 rounded-lg transition-all"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -138,11 +173,11 @@ export function StudentsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-slate-500">
-          <span>Page {page} of {totalPages}</span>
+        <div className="flex items-center justify-between px-2 pt-2">
+          <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Page {page} of {totalPages}</span>
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Prev</Button>
-            <Button variant="secondary" size="sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
+            <Button variant="secondary" size="sm" className="h-8 text-xs px-3" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Prev</Button>
+            <Button variant="secondary" size="sm" className="h-8 text-xs px-3" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
           </div>
         </div>
       )}
@@ -163,18 +198,40 @@ export function StudentsPage() {
       {qrStudent && (
         <Modal open onClose={() => setQrStudent(null)} title={`QR Code — ${qrStudent.name.first} ${qrStudent.name.last}`} size="sm">
           <div className="flex flex-col items-center gap-4 py-4">
-            {qrStudent.qrCodeUrl ? (
-              <img src={qrStudent.qrCodeUrl} alt="QR Code" className="h-48 w-48 object-contain" />
-            ) : (
-              <p className="text-sm text-slate-400">QR code not generated yet.</p>
-            )}
-            <p className="text-xs text-slate-400">{qrStudent.studentId}</p>
+            <div className="p-4 bg-white rounded-2xl border-2 border-surface-border shadow-inner">
+              {qrStudent.qrCodeUrl ? (
+                <img src={qrStudent.qrCodeUrl} alt="QR Code" className="h-48 w-48 object-contain" />
+              ) : (
+                <div className="h-48 w-48 flex items-center justify-center text-slate-300">
+                  <QrCode className="h-12 w-12" />
+                </div>
+              )}
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-bold text-slate-800">{qrStudent.studentId}</p>
+              <p className="text-xs text-slate-400">Scan this code for attendance</p>
+            </div>
+            <Button variant="secondary" size="sm" className="w-full" onClick={() => window.print()}>
+              <Download className="h-4 w-4" /> Download QR
+            </Button>
           </div>
         </Modal>
       )}
+    </div>
+  );
+
+  if (isComponent) return content;
+
+  return (
+    <PageWrapper
+      title="Students"
+      description={`${total} students registered in the system.`}
+    >
+      {content}
     </PageWrapper>
   );
 }
+
 
 function StudentFormModal({
   open, student, onClose, onSuccess,

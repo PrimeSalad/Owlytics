@@ -9,21 +9,22 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
   }
 
   body {
-    @apply bg-surface-muted text-slate-800 font-sans text-sm leading-relaxed;
+    @apply bg-slate-50 text-slate-800 font-sans text-sm leading-relaxed;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display text-slate-900 leading-tight;
+    @apply font-display text-slate-900 leading-tight tracking-tight;
   }
 
   /* Custom scrollbar */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { @apply bg-transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-slate-300 rounded-full; }
-  ::-webkit-scrollbar-thumb:hover { @apply bg-slate-400; }
+  ::-webkit-scrollbar-thumb { @apply bg-slate-300/80 rounded-full border-2 border-solid border-transparent bg-clip-padding; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-slate-400/80; }
 }
 
 @layer components {

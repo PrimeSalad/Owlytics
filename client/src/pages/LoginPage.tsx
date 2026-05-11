@@ -40,76 +40,78 @@ export default function LoginPage() {
     <div className="flex min-h-screen">
       {/* ── Left panel ─────────────────────────────────────── */}
       <div
-        className="hidden lg:flex lg:w-[52%] flex-col justify-between p-14 text-white relative overflow-hidden"
-        style={{ background: 'linear-gradient(145deg, #0a1a14 0%, #0d2b1f 50%, #0f3d2a 100%)' }}
+        className="hidden lg:flex lg:w-[55%] flex-col justify-between p-16 text-white relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #020806 0%, #0a1f16 50%, #0d3624 100%)' }}
       >
         {/* Subtle radial glow */}
         <div
           className="pointer-events-none absolute inset-0"
-          style={{ background: 'radial-gradient(ellipse 70% 60% at 30% 60%, rgba(16,185,129,0.12) 0%, transparent 70%)' }}
+          style={{ background: 'radial-gradient(ellipse 80% 80% at 20% 50%, rgba(16,185,129,0.15) 0%, transparent 60%)' }}
         />
 
         {/* Brand */}
         <div className="relative flex items-center gap-3">
-          <div className="h-9 w-9 flex items-center justify-center rounded-xl bg-white/8 border border-white/10">
+          <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 shadow-sm backdrop-blur-md">
             <img src={logo} alt="Owlytics" className="h-5 w-5 object-contain brightness-0 invert" />
           </div>
           <div>
-            <p className="font-display text-base font-semibold tracking-tight">Owlytics</p>
-            <p className="text-[10px] text-white/35 uppercase tracking-widest">Student Monitor</p>
+            <p className="font-display text-lg font-bold tracking-tight">Owlytics</p>
+            <p className="text-[10px] text-white/50 uppercase tracking-[0.2em] font-bold">Student Monitor</p>
           </div>
         </div>
 
         {/* Hero text */}
         <div className="relative">
-          <h1 className="font-display text-[2.75rem] font-semibold leading-[1.1] tracking-tight text-white">
+          <h1 className="font-display text-[3.5rem] font-bold leading-[1.05] tracking-tight text-white mb-6">
             Smart attendance.<br />
             <span className="text-brand-400">Zero paperwork.</span>
           </h1>
-          <p className="mt-5 text-base text-white/50 leading-relaxed max-w-xs">
+          <p className="text-lg text-white/60 leading-relaxed max-w-md font-medium">
             QR-based attendance, real-time emergency alerts, and one-click accomplishment reports for student organizations.
           </p>
 
           {/* Feature list */}
-          <ul className="mt-8 space-y-2.5">
+          <ul className="mt-10 space-y-4">
             {[
               'QR code attendance with offline sync',
               'Live emergency reporting to officers',
               'Auto-generated PDF accomplishment reports',
               'Role-based access for your entire org',
             ].map((f) => (
-              <li key={f} className="flex items-center gap-2.5 text-sm text-white/60">
-                <span className="h-1.5 w-1.5 rounded-full bg-brand-400 shrink-0" />
+              <li key={f} className="flex items-center gap-3 text-sm font-medium text-white/70">
+                <div className="h-5 w-5 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
+                </div>
                 {f}
               </li>
             ))}
           </ul>
         </div>
 
-        <p className="relative text-xs text-white/20">
+        <p className="relative text-[11px] text-white/30 font-medium tracking-wide">
           © {new Date().getFullYear()} Owlytics. Built for high-performance student organizations.
         </p>
       </div>
 
       {/* ── Right panel ────────────────────────────────────── */}
-      <div className="flex flex-1 items-center justify-center bg-white p-6">
-        <div className="w-full max-w-[360px]">
+      <div className="flex flex-1 items-center justify-center bg-white p-6 shadow-[-20px_0_40px_-15px_rgba(0,0,0,0.05)] z-10">
+        <div className="w-full max-w-[380px]">
 
           {/* Mobile logo */}
-          <div className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-[#0a1612]">
+          <div className="mb-10 flex items-center gap-3 lg:hidden">
+            <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-[#0a1612] shadow-sm">
               <img src={logo} alt="Owlytics" className="h-5 w-5 object-contain brightness-0 invert" />
             </div>
             <div>
-              <p className="font-display text-base font-semibold text-slate-900">Owlytics</p>
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest">Student Monitor</p>
+              <p className="font-display text-xl font-bold text-slate-900 tracking-tight">Owlytics</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-bold">Student Monitor</p>
             </div>
           </div>
 
-          <h2 className="font-display text-2xl font-semibold text-slate-900">Sign in</h2>
-          <p className="mt-1 text-sm text-slate-400">Enter your credentials to access your dashboard.</p>
+          <h2 className="font-display text-3xl font-bold text-slate-900 tracking-tight">Sign in</h2>
+          <p className="mt-2 text-sm text-slate-500 font-medium">Enter your credentials to access your dashboard.</p>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-7 space-y-4" noValidate>
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5" noValidate>
             <Input
               label="Email address"
               type="email"

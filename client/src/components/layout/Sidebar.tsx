@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, GraduationCap, CalendarDays,
+  LayoutDashboard, Users, CalendarDays,
   ClipboardList, FileText, QrCode, LogOut, ChevronLeft,
 } from 'lucide-react';
+
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import type { UserRole } from '@/types';
@@ -17,13 +18,13 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard',  to: '/dashboard',  icon: LayoutDashboard, roles: ['President','Secretary','Officer','Committee','Attendance'] },
-  { label: 'Students',   to: '/students',   icon: GraduationCap,   roles: ['President','Secretary','Officer'] },
+  { label: 'People',     to: '/directory',  icon: Users,           roles: ['President','Secretary','Officer'] },
   { label: 'Events',     to: '/events',     icon: CalendarDays,    roles: ['President','Secretary','Officer','Committee'] },
   { label: 'Attendance', to: '/attendance', icon: ClipboardList,   roles: ['President','Secretary','Attendance'] },
   { label: 'Scanner',    to: '/scanner',    icon: QrCode,          roles: ['Attendance'] },
   { label: 'Reports',    to: '/reports',    icon: FileText,        roles: ['President','Secretary','Officer','Committee'] },
-  { label: 'Members',    to: '/members',    icon: Users,           roles: ['President','Secretary'] },
 ];
+
 
 interface SidebarProps {
   collapsed: boolean;
@@ -65,16 +66,16 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             to={item.to}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-2.5 rounded px-2.5 py-2 text-[13px] font-medium transition-colors mb-0.5',
+                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-200 mb-1',
                 isActive
-                  ? 'bg-brand-500 text-white'
-                  : 'text-white/50 hover:bg-white/5 hover:text-white',
+                  ? 'bg-brand-500/10 text-brand-400 font-semibold'
+                  : 'text-white/60 hover:bg-white/5 hover:text-white',
                 collapsed && 'justify-center'
               )
             }
             title={collapsed ? item.label : undefined}
           >
-            <item.icon className="h-[18px] w-[18px] shrink-0" />
+            <item.icon className={cn("h-5 w-5 shrink-0 transition-transform", !collapsed && "group-hover:scale-110")} />
             {!collapsed && <span>{item.label}</span>}
           </NavLink>
         ))}

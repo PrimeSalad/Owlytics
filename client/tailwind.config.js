@@ -10,7 +10,7 @@ export default {
       colors: {
         // Brand — premium emerald, clean and sharp
         brand: {
-          50:  '#ecfdf5',
+          50: '#ecfdf5',
           100: '#d1fae5',
           200: '#a7f3d0',
           300: '#6ee7b7',
@@ -25,15 +25,55 @@ export default {
         // Semantic surface tokens
         surface: {
           DEFAULT: '#ffffff',
-          muted:   '#f8fafc',
-          subtle:  '#f1f5f9',
-          border:  '#e2e8f0',
+          muted: '#f8fafc',
+          subtle: '#f1f5f9',
+          border: '#e2e8f0',
         },
         // Status colors
-        success: { DEFAULT: '#22c55e', light: '#dcfce7', dark: '#15803d' },
-        warning: { DEFAULT: '#f59e0b', light: '#fef3c7', dark: '#b45309' },
-        danger:  { DEFAULT: '#ef4444', light: '#fee2e2', dark: '#b91c1c' },
-        info:    { DEFAULT: '#3b82f6', light: '#dbeafe', dark: '#1d4ed8' },
+        success: {
+          50: '#f0fdf4',
+          100: '#dcfce7',
+          200: '#bbf7d0',
+          500: '#22c55e',
+          600: '#16a34a',
+          700: '#15803d',
+          DEFAULT: '#22c55e',
+          light: '#dcfce7',
+          dark: '#15803d',
+        },
+        warning: {
+          50: '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          500: '#f59e0b',
+          600: '#d97706',
+          700: '#b45309',
+          DEFAULT: '#f59e0b',
+          light: '#fef3c7',
+          dark: '#b45309',
+        },
+        danger: {
+          50: '#fef2f2',
+          100: '#fee2e2',
+          200: '#fecaca',
+          500: '#ef4444',
+          600: '#dc2626',
+          700: '#b91c1c',
+          DEFAULT: '#ef4444',
+          light: '#fee2e2',
+          dark: '#b91c1c',
+        },
+        info: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          200: '#bfdbfe',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+          DEFAULT: '#3b82f6',
+          light: '#dbeafe',
+          dark: '#1d4ed8',
+        },
       },
       borderRadius: {
         DEFAULT: '0.5rem',
@@ -49,8 +89,14 @@ export default {
         modal: '0 20px 60px -10px rgb(0 0 0 / 0.25)',
       },
       keyframes: {
-        'fade-in': { from: { opacity: '0', transform: 'translateY(6px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
-        'slide-in': { from: { transform: 'translateX(-100%)' }, to: { transform: 'translateX(0)' } },
+        'fade-in': {
+          from: { opacity: '0', transform: 'translateY(6px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'slide-in': {
+          from: { transform: 'translateX(-100%)' },
+          to: { transform: 'translateX(0)' },
+        },
         'spin-slow': { to: { transform: 'rotate(360deg)' } },
       },
       animation: {

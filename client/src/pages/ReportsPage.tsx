@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Plus, AlertTriangle, CheckCircle2, FileText } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
 import { Button, Card, CardBody, Modal, Input, StatusBadge, Spinner } from '@/components/ui';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import type { Event, Report } from '@/types';
 
 const REPORT_TYPES = ['Update', 'Emergency', 'Accomplishment'] as const;
@@ -51,55 +52,78 @@ export function ReportsPage() {
       actions={<Button size="sm" onClick={() => setSubmitOpen(true)}><Plus className="h-4 w-4" />New Report</Button>}
     >
       {/* Type filter */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap mb-2">
         {['', ...REPORT_TYPES].map((t) => (
           <button
             key={t}
             onClick={() => setTypeFilter(t)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              typeFilter === t ? 'bg-brand-500 text-white' : 'bg-surface-subtle text-slate-500 hover:bg-surface-border'
+            className={`rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-all duration-200 ${
+              typeFilter === t ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20' : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
             }`}
           >
-            {t || 'All'}
+            {t || 'All Reports'}
           </button>
         ))}
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-16"><Spinner /></div>
+        <div className="flex justify-center py-20"><Spinner size="lg" /></div>
       ) : reports.length === 0 ? (
-        <Card><CardBody className="py-16 text-center text-sm text-slate-400">No reports found.</CardBody></Card>
+        <div className="py-24 text-center bg-white rounded-2xl border border-slate-200/60 shadow-sm">
+          <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+            <FileText className="h-8 w-8 text-slate-300" />
+          </div>
+          <h3 className="font-display text-lg font-bold text-slate-800 tracking-tight">No reports found</h3>
+          <p className="mt-1 text-sm text-slate-500">There are no reports matching your filters.</p>
+        </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           {reports.map((r) => (
-            <Card key={r._id} hover onClick={() => setViewReport(r)}>
-              <CardBody className="flex items-start justify-between gap-4 py-4">
+            <Card key={r._id} hover onClick={() => setViewReport(r)} className={cn("flex flex-col relative overflow-hidden", r.type === 'Emergency' && !r.isResolved && "border-danger-200 ring-1 ring-danger-100")}>
+              {r.type === 'Emergency' && !r.isResolved && <div className="absolute top-0 left-0 w-1.5 h-full bg-danger-500" />}
+              <CardBody className="flex flex-col justify-between gap-4 p-5 h-full">
                 <div className="flex items-start gap-3 min-w-0">
                   {r.type === 'Emergency' && !r.isResolved && (
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+                    <div className="h-8 w-8 rounded-full bg-danger-50 flex items-center justify-center shrink-0 mt-0.5">
+                      <AlertTriangle className="h-4 w-4 text-danger-600" />
+                    </div>
                   )}
-                  {r.isResolved && <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />}
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium text-slate-800">{r.title}</p>
+                  {r.isResolved && (
+                    <div className="h-8 w-8 rounded-full bg-success-50 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle2 className="h-4 w-4 text-success-600" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
                       <StatusBadge status={r.type} />
                       {r.isResolved && <StatusBadge status="Completed" />}
                     </div>
-                    <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{r.content}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {r.authorId.name.first} {r.authorId.name.last} · {new Date(r.createdAt).toLocaleString()}
-                    </p>
+                    <p className="font-display text-base font-bold text-slate-800 tracking-tight truncate">{r.title}</p>
+                    <p className="text-sm text-slate-500 mt-1 line-clamp-2 leading-relaxed">{r.content}</p>
                   </div>
                 </div>
-                {r.type === 'Emergency' && !r.isResolved && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={(e) => { e.stopPropagation(); resolveMutation.mutate(r._id); }}
-                  >
-                    Resolve
-                  </Button>
-                )}
+                
+                <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-[9px] font-bold text-slate-500">
+                      {r.authorId.name.first[0]}{r.authorId.name.last[0]}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-600">{r.authorId.name.first} {r.authorId.name.last}</span>
+                      <span className="text-[9px] text-slate-400 uppercase tracking-widest">{new Date(r.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  {r.type === 'Emergency' && !r.isResolved && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-7 text-xs px-3 shadow-none border-danger-200 text-danger-700 hover:bg-danger-50"
+                      onClick={(e) => { e.stopPropagation(); resolveMutation.mutate(r._id); }}
+                    >
+                      Resolve
+                    </Button>
+                  )}
+                </div>
               </CardBody>
             </Card>
           ))}

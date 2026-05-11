@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit2, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, CalendarDays, MapPin, Clock } from 'lucide-react';
+
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -63,64 +64,74 @@ export function EventsPage() {
       actions={<Button size="sm" onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" />New Event</Button>}
     >
       {/* Status filter */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap mb-2">
         {['', ...STATUS_OPTIONS].map((s) => (
           <button
             key={s}
             onClick={() => setStatusFilter(s)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            className={`rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-all duration-200 ${
               statusFilter === s
-                ? 'bg-brand-500 text-white'
-                : 'bg-surface-subtle text-slate-500 hover:bg-surface-border'
+                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20'
+                : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
             }`}
           >
-            {s || 'All'}
+            {s || 'All Events'}
           </button>
         ))}
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-16"><Spinner /></div>
+        <div className="flex justify-center py-20"><Spinner size="lg" /></div>
       ) : events.length === 0 ? (
-        <Card><CardBody className="py-16 text-center text-sm text-slate-400">No events found.</CardBody></Card>
+        <div className="py-24 text-center bg-white rounded-2xl border border-slate-200/60 shadow-sm">
+          <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+            <CalendarDays className="h-8 w-8 text-slate-300" />
+          </div>
+          <h3 className="font-display text-lg font-bold text-slate-800 tracking-tight">No events found</h3>
+          <p className="mt-1 text-sm text-slate-500">Get started by creating a new event.</p>
+        </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((ev) => (
-            <Card key={ev._id}>
-              <CardBody className="p-0">
+            <Card key={ev._id} className="flex flex-col">
+              <CardBody className="p-0 flex-1 flex flex-col">
                 {/* Event header */}
-                <div className="flex items-start justify-between gap-4 p-4">
+                <div className="flex items-start justify-between gap-4 p-5 border-b border-slate-100">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-slate-900">{ev.title}</p>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <p className="font-display text-lg font-bold text-slate-800 tracking-tight leading-tight">{ev.title}</p>
                       <StatusBadge status={ev.status} />
                     </div>
-                    {ev.venue && <p className="text-xs text-slate-400 mt-0.5">{ev.venue}</p>}
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    {ev.venue && <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{ev.venue}</p>}
+                    <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5 mt-1.5">
+                      <Clock className="h-3.5 w-3.5" />
                       {new Date(ev.dateRange.start).toLocaleDateString()} — {new Date(ev.dateRange.end).toLocaleDateString()}
                     </p>
                   </div>
+                </div>
+
+                <div className="px-5 py-3 bg-slate-50 flex items-center justify-between mt-auto">
+                  <select
+                    value={ev.status}
+                    onChange={(e) => updateStatusMutation.mutate({ id: ev._id, status: e.target.value })}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  >
+                    {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+
                   <div className="flex items-center gap-1 shrink-0">
-                    {/* Quick status change */}
-                    <select
-                      value={ev.status}
-                      onChange={(e) => updateStatusMutation.mutate({ id: ev._id, status: e.target.value })}
-                      className="rounded border border-surface-border bg-white px-2 py-1 text-xs focus:outline-none focus:border-brand-400"
-                    >
-                      {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <button onClick={() => setEditEvent(ev)} className="p-1.5 text-slate-400 hover:text-brand-600 transition-colors">
+                    <button onClick={() => setEditEvent(ev)} className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all" title="Edit Event">
                       <Edit2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => confirm(`Delete "${ev.title}"?`) && deleteMutation.mutate(ev._id)}
-                      className="p-1.5 text-slate-400 hover:text-danger transition-colors"
+                      className="p-1.5 text-slate-400 hover:text-danger hover:bg-danger-50 rounded-lg transition-all" title="Delete Event"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => setExpandedId(expandedId === ev._id ? null : ev._id)}
-                      className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors"
+                      className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-all" title="View Activities"
                     >
                       {expandedId === ev._id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </button>
@@ -129,15 +140,17 @@ export function EventsPage() {
 
                 {/* Activities panel */}
                 {expandedId === ev._id && (
-                  <div className="border-t border-surface-border px-4 pb-4 pt-3">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Activities</p>
-                      <Button size="sm" variant="secondary" onClick={() => setAddActivityFor(ev._id)}>
-                        <Plus className="h-3.5 w-3.5" />Add Activity
+                  <div className="border-t border-slate-200 px-5 pb-5 pt-4 bg-white">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Activities</p>
+                      <Button size="sm" variant="secondary" onClick={() => setAddActivityFor(ev._id)} className="h-7 text-[10px] px-2">
+                        <Plus className="h-3 w-3" /> Add
                       </Button>
                     </div>
                     {ev.activities.length === 0 ? (
-                      <p className="text-xs text-slate-400">No activities yet.</p>
+                      <div className="text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        <p className="text-[11px] font-medium text-slate-400">No activities scheduled.</p>
+                      </div>
                     ) : (
                       <div className="space-y-2">
                         {ev.activities.map((act) => (
@@ -284,3 +297,4 @@ function ActivityFormModal({ open, eventId, onClose, onSuccess }: { open: boolea
     </Modal>
   );
 }
+

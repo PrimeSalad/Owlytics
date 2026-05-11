@@ -1,23 +1,11 @@
 import { useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Navbar } from './Navbar';
-
-const PAGE_TITLES: Record<string, string> = {
-  '/dashboard':  'Dashboard',
-  '/students':   'Students',
-  '/events':     'Events',
-  '/attendance': 'Attendance',
-  '/scanner':    'QR Scanner',
-  '/reports':    'Reports',
-  '/members':    'Members',
-};
 
 export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const location = useLocation();
-  const title = PAGE_TITLES[location.pathname] ?? '';
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-muted">
@@ -42,7 +30,7 @@ export function AppLayout() {
 
       {/* Main */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Navbar onMenuClick={() => setMobileOpen((o) => !o)} title={title} />
+        <Navbar onMenuClick={() => setMobileOpen((o) => !o)} />
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>

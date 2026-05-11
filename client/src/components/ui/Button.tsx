@@ -4,21 +4,21 @@ import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded font-medium transition-all duration-150 focus-ring disabled:pointer-events-none disabled:opacity-50 select-none',
+  'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 select-none',
   {
     variants: {
       variant: {
-        primary:   'bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700 shadow-sm',
-        secondary: 'bg-surface-subtle text-slate-700 hover:bg-surface-border active:bg-slate-200 border border-surface-border',
-        danger:    'bg-danger text-white hover:bg-danger-dark active:bg-red-700 shadow-sm',
-        ghost:     'text-slate-600 hover:bg-surface-subtle active:bg-surface-border',
+        primary:   'bg-brand-500 text-white hover:bg-brand-600 hover:shadow-md hover:shadow-brand-500/20 active:bg-brand-700 shadow-sm border border-brand-600/20',
+        secondary: 'bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 border border-slate-200 shadow-sm',
+        danger:    'bg-danger-500 text-white hover:bg-danger-600 hover:shadow-md hover:shadow-danger-500/20 active:bg-danger-700 shadow-sm border border-danger-600/20',
+        ghost:     'text-slate-600 hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200',
         link:      'text-brand-600 underline-offset-4 hover:underline p-0 h-auto',
       },
       size: {
         sm:   'h-8 px-3 text-xs',
-        md:   'h-9 px-4 text-sm',
-        lg:   'h-11 px-6 text-base',
-        icon: 'h-9 w-9 p-0',
+        md:   'h-10 px-4 text-sm',
+        lg:   'h-12 px-6 text-base',
+        icon: 'h-10 w-10 p-0',
       },
     },
     defaultVariants: { variant: 'primary', size: 'md' },

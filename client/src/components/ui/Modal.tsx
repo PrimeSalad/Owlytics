@@ -31,21 +31,21 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
         <Dialog.Content
           className={cn(
             'fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2',
-            'rounded-xl bg-white shadow-modal p-6 animate-fade-in',
+            'rounded-2xl bg-white shadow-2xl p-6 sm:p-8 border border-slate-100 animate-fade-in',
             sizeMap[size],
             className
           )}
         >
           {/* Header */}
           {(title || description) && (
-            <div className="mb-5">
+            <div className="mb-6">
               {title && (
-                <Dialog.Title className="font-display text-lg font-semibold text-slate-900">
+                <Dialog.Title className="font-display text-xl font-bold text-slate-800 tracking-tight">
                   {title}
                 </Dialog.Title>
               )}
               {description && (
-                <Dialog.Description className="mt-1 text-sm text-slate-500">
+                <Dialog.Description className="mt-1.5 text-sm text-slate-500">
                   {description}
                 </Dialog.Description>
               )}
@@ -56,7 +56,7 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
 
           {/* Close button */}
           <Dialog.Close
-            className="absolute right-4 top-4 rounded p-1 text-slate-400 hover:bg-surface-subtle hover:text-slate-600 transition-colors focus-ring"
+            className="absolute right-4 top-4 rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             aria-label="Close"
           >
             <X className="h-4 w-4" />

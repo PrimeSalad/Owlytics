@@ -1,4 +1,5 @@
-import { CalendarDays, GraduationCap, TrendingUp, AlertTriangle, Users } from 'lucide-react';
+import { CalendarDays, TrendingUp, AlertTriangle, Users } from 'lucide-react';
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';

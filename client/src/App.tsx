@@ -3,12 +3,12 @@ import { AppLayout } from '@/components/layout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import LoginPage from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
-import { StudentsPage } from '@/pages/StudentsPage';
 import { EventsPage } from '@/pages/EventsPage';
 import { AttendancePage } from '@/pages/AttendancePage';
 import { ScannerPage } from '@/pages/ScannerPage';
 import { ReportsPage } from '@/pages/ReportsPage';
-import { MembersPage } from '@/pages/MembersPage';
+import { DirectoryPage } from '@/pages/DirectoryPage';
+
 
 export default function App() {
   return (
@@ -25,15 +25,17 @@ export default function App() {
             <Route path="/events" element={<EventsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
 
-            {/* Secretary+ */}
+            {/* Combined Directory — Accessible by President, Secretary, Officer */}
             <Route element={<ProtectedRoute roles={['President', 'Secretary', 'Officer']} />}>
-              <Route path="/students" element={<StudentsPage />} />
+              <Route path="/directory" element={<DirectoryPage />} />
+              {/* Redirect old paths */}
+              <Route path="/students" element={<Navigate to="/directory" replace />} />
+              <Route path="/members" element={<Navigate to="/directory" replace />} />
             </Route>
 
             {/* Secretary + President */}
-            <Route element={<ProtectedRoute roles={['President', 'Secretary']} />}>
+            <Route element={<ProtectedRoute roles={['President', 'Secretary', 'Attendance']} />}>
               <Route path="/attendance" element={<AttendancePage />} />
-              <Route path="/members" element={<MembersPage />} />
             </Route>
 
             {/* Attendance role only */}
@@ -49,3 +51,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+

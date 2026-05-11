@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { UserPlus, Edit2, Trash2 } from 'lucide-react';
+import { UserPlus, Edit2, Trash2, Users as UsersIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
 import { Button, Card, CardBody, Modal, Input, Badge, Spinner } from '@/components/ui';
 import { api } from '@/lib/api';
-import type { User, UserRole } from '@/types';
+import type { User } from '@/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { cn } from '@/lib/utils';
+
 
 const createSchema = z.object({
   studentId: z.string().min(1, 'Student ID required'),
@@ -26,7 +28,7 @@ const updateSchema = z.object({
 });
 type UpdateForm = z.infer<typeof updateSchema>;
 
-export function MembersPage() {
+export function MembersPage({ isComponent = false }: { isComponent?: boolean }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const queryClient = useQueryClient();
@@ -86,74 +88,96 @@ export function MembersPage() {
     },
   });
 
-  return (
-    <PageWrapper
-      title="Members"
-      description="Manage organization member accounts and role assignments."
-      actions={
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <UserPlus className="h-4 w-4" />
-          Add Member
-        </Button>
-      }
-    >
+  const content = (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Organization Staff</h3>
+        {!isComponent && (
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <UserPlus className="h-4 w-4" /> Add Member
+          </Button>
+        )}
+        {isComponent && (
+           <Button size="sm" variant="secondary" onClick={() => setCreateOpen(true)}>
+            <UserPlus className="h-3.5 w-3.5" /> Add Staff
+          </Button>
+        )}
+      </div>
+
       <Card>
         <CardBody className="p-0">
           {isLoading ? (
-            <div className="py-16"><Spinner size="lg" /></div>
+            <div className="py-16 flex justify-center"><Spinner size="lg" /></div>
           ) : users.length === 0 ? (
-            <div className="py-16 text-center text-slate-400 text-sm">
-              No members yet. Click "Add Member" to create the first account.
+            <div className="py-20 text-center">
+              <div className="h-12 w-12 bg-surface-muted rounded-full flex items-center justify-center mx-auto mb-3">
+                <UsersIcon className="h-6 w-6 text-slate-300" />
+              </div>
+              <p className="text-sm text-slate-500">No members found.</p>
             </div>
+
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-surface-muted border-b border-surface-border">
-                  <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
-                    <th className="px-5 py-3 font-medium">Member</th>
-                    <th className="px-5 py-3 font-medium">Student ID</th>
-                    <th className="px-5 py-3 font-medium">Role</th>
-                    <th className="px-5 py-3 font-medium">Status</th>
-                    <th className="px-5 py-3 font-medium text-right">Actions</th>
+                <thead>
+                  <tr className="bg-surface-muted/50 border-b border-surface-border text-left">
+                    <th className="px-6 py-4 font-bold text-slate-500 text-[10px] uppercase tracking-wider">Member</th>
+                    <th className="px-6 py-4 font-bold text-slate-500 text-[10px] uppercase tracking-wider">Student ID</th>
+                    <th className="px-6 py-4 font-bold text-slate-500 text-[10px] uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-4 font-bold text-slate-500 text-[10px] uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 font-bold text-slate-500 text-[10px] uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-border">
                   {users.map((u) => (
-                    <tr key={u._id} className="hover:bg-surface-muted transition-colors">
-                      <td className="px-5 py-3">
-                        <p className="font-medium text-slate-800">
-                          {u.name.first} {u.name.last}
-                        </p>
-                        <p className="text-xs text-slate-400">{u.email}</p>
+                    <tr key={u._id} className="hover:bg-surface-muted/30 transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs",
+                            u.role === 'President' ? 'bg-brand-500' : 'bg-slate-400'
+                          )}>
+                            {u.name.first[0]}{u.name.last[0]}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-800 text-sm">{u.name.first} {u.name.last}</p>
+                            <p className="text-[11px] text-slate-400">{u.email}</p>
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-5 py-3 text-slate-600">{u.studentId}</td>
-                      <td className="px-5 py-3">
-                        <Badge variant={u.role === 'President' ? 'primary' : 'default'}>
-                          {u.role}
+                      <td className="px-6 py-4 font-mono text-[11px] text-slate-500">{u.studentId}</td>
+                      <td className="px-6 py-4">
+                        <Badge variant={u.role === 'President' ? 'primary' : 'default'} className="font-bold text-[10px]">
+                          {u.role.toUpperCase()}
                         </Badge>
                       </td>
-                      <td className="px-5 py-3">
-                        <Badge variant={u.isActive ? 'success' : 'danger'}>
-                          {u.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5">
+                          <div className={cn("h-1.5 w-1.5 rounded-full", u.isActive ? "bg-success-500" : "bg-danger-500")} />
+                          <span className={cn("text-[11px] font-bold uppercase", u.isActive ? "text-success-600" : "text-danger-600")}>
+                            {u.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
                       </td>
-                      <td className="px-5 py-3 text-right space-x-2">
-                        <button
-                          onClick={() => setEditUser(u)}
-                          className="text-brand-600 hover:text-brand-700 transition-colors"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Deactivate ${u.name.first} ${u.name.last}?`)) {
-                              deleteMutation.mutate(u._id);
-                            }
-                          }}
-                          className="text-danger hover:text-danger-dark transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => setEditUser(u)}
+                            className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Deactivate ${u.name.first} ${u.name.last}?`)) {
+                                deleteMutation.mutate(u._id);
+                              }
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-danger hover:bg-danger-50 rounded-lg transition-all"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -179,9 +203,21 @@ export function MembersPage() {
           loading={updateMutation.isPending}
         />
       )}
+    </div>
+  );
+
+  if (isComponent) return content;
+
+  return (
+    <PageWrapper
+      title="Members"
+      description="Manage organization member accounts and role assignments."
+    >
+      {content}
     </PageWrapper>
   );
 }
+
 
 function CreateMemberModal({
   open,

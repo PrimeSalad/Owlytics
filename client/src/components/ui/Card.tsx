@@ -9,8 +9,8 @@ export function Card({ className, hover, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-xl bg-white shadow-card border border-surface-border',
-        hover && 'transition-shadow duration-200 hover:shadow-card-hover cursor-pointer',
+        'rounded-2xl bg-white shadow-sm border border-slate-200/60 overflow-hidden',
+        hover && 'transition-all duration-300 hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5 cursor-pointer',
         className
       )}
       {...props}
@@ -19,13 +19,13 @@ export function Card({ className, hover, ...props }: CardProps) {
 }
 
 export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('px-5 pt-5 pb-3', className)} {...props} />;
+  return <div className={cn('px-6 pt-6 pb-4', className)} {...props} />;
 }
 
 export function CardBody({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('px-5 pb-5', className)} {...props} />;
+  return <div className={cn('px-6 pb-6', className)} {...props} />;
 }
 
 export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn('font-display text-base font-semibold text-slate-900', className)} {...props} />;
+  return <h3 className={cn('font-display text-lg font-bold text-slate-800 tracking-tight', className)} {...props} />;
 }

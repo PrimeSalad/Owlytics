@@ -1,7 +1,8 @@
 import { CalendarDays, CheckCircle2, Clock, Activity } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { PageWrapper } from '@/components/layout';
-import { Card, CardHeader, CardBody, CardTitle, StatusBadge, PageSpinner } from '@/components/ui';
+import { Card, CardBody, StatusBadge, PageSpinner } from '@/components/ui';
+
 import { StatCard } from './StatCard';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
