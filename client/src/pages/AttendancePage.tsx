@@ -1,17 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  AlertTriangle,
-  Calendar,
-  CheckCircle2,
-  ChevronDown,
-  Clock,
-  ListChecks,
-  Plus,
-  Search,
-  Users,
-  X,
-} from 'lucide-react';
+import { AlertTriangle, Calendar, ChevronDown, Clock, Plus, Search, Users, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -116,29 +105,6 @@ const scheduleSchema = z.object({
 });
 
 type ScheduleForm = z.infer<typeof scheduleSchema>;
-
-const metricToneClasses: Record<MetricTone, { shell: string; icon: string }> = {
-  slate: {
-    shell: 'border-slate-200 bg-slate-50 text-slate-700',
-    icon: 'bg-white text-slate-500 border-slate-200',
-  },
-  success: {
-    shell: 'border-success-200/70 bg-success-50 text-success-700',
-    icon: 'bg-white text-success-600 border-success-200',
-  },
-  warning: {
-    shell: 'border-warning-200/70 bg-warning-50 text-warning-700',
-    icon: 'bg-white text-warning-600 border-warning-200',
-  },
-  danger: {
-    shell: 'border-danger-200/70 bg-danger-50 text-danger-700',
-    icon: 'bg-white text-danger-600 border-danger-200',
-  },
-  brand: {
-    shell: 'border-brand-200/70 bg-brand-50 text-brand-700',
-    icon: 'bg-white text-brand-600 border-brand-200',
-  },
-};
 
 export function AttendancePage() {
   const qc = useQueryClient();
@@ -276,6 +242,9 @@ export function AttendancePage() {
   );
 
   const hasFilters = selectedSessionId !== 'all' || searchQuery.trim().length > 0;
+  const pageDescription = selectedEvent
+    ? `${selectedEvent.title} - ${formatDateRange(selectedEvent)}`
+    : 'Choose an activity to view sessions and scan logs.';
 
   const markAbsentMutation = useMutation({
     mutationFn: async (scheduleId: string) =>
@@ -306,55 +275,39 @@ export function AttendancePage() {
   return (
     <PageWrapper
       title="Attendance"
+      description={pageDescription}
       actions={
-        <Button disabled={events.length === 0} onClick={() => setScheduleOpen(true)}>
-          <Plus className="h-4 w-4" />
-          New schedule
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <div className="relative w-full sm:w-80">
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-500" />
+            <label htmlFor="attendance-event" className="sr-only">
+              Select activity
+            </label>
+            <select
+              id="attendance-event"
+              value={selectedEventId}
+              disabled={eventsLoading || events.length === 0}
+              onChange={(event) => handleEventChange(event.target.value)}
+              className="h-10 w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-10 pr-9 text-sm font-semibold text-slate-800 shadow-sm transition-all focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:text-slate-400"
+            >
+              <option value="">Select activity</option>
+              {events.map((event) => (
+                <option key={event._id} value={event._id}>
+                  {event.title}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          </div>
+
+          <Button disabled={events.length === 0} onClick={() => setScheduleOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New schedule
+          </Button>
+        </div>
       }
     >
       <div className="space-y-4">
-        <Card>
-          <CardBody className="p-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="relative w-full lg:max-w-md">
-                <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-500" />
-                <label htmlFor="attendance-event" className="sr-only">
-                  Select activity
-                </label>
-                <select
-                  id="attendance-event"
-                  value={selectedEventId}
-                  disabled={eventsLoading || events.length === 0}
-                  onChange={(event) => handleEventChange(event.target.value)}
-                  className="h-11 w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-10 text-sm font-semibold text-slate-800 transition-all focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:text-slate-400"
-                >
-                  <option value="">Select activity</option>
-                  {events.map((event) => (
-                    <option key={event._id} value={event._id}>
-                      {event.title}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              </div>
-
-              {selectedEvent && (
-                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-600">
-                  <Badge variant={selectedEvent.status === 'Ongoing' ? 'warning' : 'default'}>
-                    {selectedEvent.status}
-                  </Badge>
-                  <DetailChip label={formatDateRange(selectedEvent)} />
-                  <DetailChip label={selectedEvent.venue || 'No venue'} />
-                  <DetailChip
-                    label={`${records.length} ${records.length === 1 ? 'log' : 'logs'}`}
-                  />
-                </div>
-              )}
-            </div>
-          </CardBody>
-        </Card>
-
         {!selectedEventId ? (
           <EmptyPanel
             icon={eventsLoading ? Clock : Calendar}
@@ -367,234 +320,240 @@ export function AttendancePage() {
             loading={eventsLoading}
           />
         ) : (
-          <div className="space-y-4">
-            <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <CompactMetric
-                icon={ListChecks}
-                label="Checked in"
-                value={stats.checkedIn}
-                helper={`${stats.rate}%`}
-                tone="brand"
-              />
-              <CompactMetric
-                icon={CheckCircle2}
-                label="Present"
-                value={stats.present}
-                helper={`${stats.total} total`}
-                tone="success"
-              />
-              <CompactMetric
-                icon={Clock}
-                label="Late"
-                value={stats.late}
-                helper="After grace"
-                tone="warning"
-              />
-              <CompactMetric
-                icon={Users}
-                label="Absent"
-                value={stats.absent}
-                helper="Marked"
-                tone="danger"
-              />
-            </section>
-
-            <Card>
-              <CardBody className="space-y-4 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-display text-base font-bold text-slate-900">Schedules</h3>
-                    <p className="text-xs text-slate-500">
-                      {schedules.length} {schedules.length === 1 ? 'schedule' : 'schedules'}
-                    </p>
-                  </div>
-                </div>
-
-                {schedulesLoading ? (
-                  <div className="flex justify-center py-10">
-                    <Spinner />
-                  </div>
-                ) : schedules.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
-                    <AlertTriangle className="mx-auto h-7 w-7 text-slate-300" />
-                    <p className="mt-3 text-sm font-bold text-slate-800">No schedules yet</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Add scan windows before attendance starts.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {schedules.map((schedule) => (
-                      <ScheduleCard
-                        key={schedule.id}
-                        loading={
-                          markAbsentMutation.isPending &&
-                          markAbsentMutation.variables === schedule.id
-                        }
-                        onMarkAbsent={() => handleMarkAbsent(schedule)}
-                        onSelectSession={(sessionId) => setSelectedSessionId(sessionId)}
-                        schedule={schedule}
-                        selectedSessionId={selectedSessionId}
-                        sessions={sessionsBySchedule.get(schedule.id) ?? []}
-                      />
-                    ))}
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardBody className="p-0">
-                <div className="border-b border-slate-100 p-4">
-                  <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                    <div className="min-w-0">
-                      <h3 className="font-display text-base font-bold text-slate-900">
-                        {selectedSession ? selectedSession.label : 'Scan logs'}
-                      </h3>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {selectedSession
-                          ? `${selectedSession.scheduleLabel} · ${formatSessionWindow(selectedSession)}`
-                          : `${records.length} ${records.length === 1 ? 'entry' : 'entries'}`}
+          <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+            <aside className="space-y-4 xl:sticky xl:top-4">
+              <Card className="xl:min-h-[560px]">
+                <CardBody className="flex flex-col gap-4 p-4 xl:min-h-[560px]">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-display text-base font-bold text-slate-900">Sessions</h3>
+                      <p className="text-xs text-slate-500">
+                        {schedules.length} {schedules.length === 1 ? 'schedule' : 'schedules'}
                       </p>
                     </div>
+                    {selectedEvent && (
+                      <Badge variant={selectedEvent.status === 'Ongoing' ? 'warning' : 'default'}>
+                        {selectedEvent.status}
+                      </Badge>
+                    )}
+                  </div>
 
-                    <div className="flex flex-col gap-2 sm:flex-row xl:min-w-[620px] xl:justify-end">
-                      <label htmlFor="attendance-session-filter" className="sr-only">
-                        Filter session
-                      </label>
-                      <select
-                        id="attendance-session-filter"
-                        value={selectedSessionId}
-                        onChange={(event) => setSelectedSessionId(event.target.value)}
-                        className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:w-56"
-                      >
-                        <option value="all">All sessions ({records.length})</option>
-                        {sessions.map((session) => (
-                          <option key={session.id} value={session.id}>
-                            {session.scheduleLabel} - {session.label} (
-                            {recordCountsBySession.get(session.id) ?? 0})
-                          </option>
-                        ))}
-                      </select>
+                  <div className="space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSessionId('all')}
+                      className={cn(
+                        'flex min-h-14 w-full items-center justify-between rounded-xl border px-3 text-left transition-all',
+                        selectedSessionId === 'all'
+                          ? 'border-brand-200 bg-brand-50 text-brand-700 shadow-sm'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                      )}
+                    >
+                      <span>
+                        <span className="block text-sm font-bold">All scan logs</span>
+                        <span className="text-xs text-slate-500">{records.length} entries</span>
+                      </span>
+                      <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-slate-500 ring-1 ring-slate-200">
+                        {records.length}
+                      </span>
+                    </button>
+                  </div>
 
-                      <div className="relative w-full sm:max-w-xs">
-                        <label htmlFor="attendance-search" className="sr-only">
-                          Search logs
-                        </label>
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        <input
-                          id="attendance-search"
-                          type="search"
-                          value={searchQuery}
-                          onChange={(event) => setSearchQuery(event.target.value)}
-                          placeholder="Search student or ID"
-                          className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm text-slate-800 transition-all placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  {schedulesLoading ? (
+                    <div className="flex flex-1 items-center justify-center rounded-xl bg-slate-50 py-10">
+                      <Spinner />
+                    </div>
+                  ) : schedules.length === 0 ? (
+                    <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
+                      <AlertTriangle className="mx-auto h-7 w-7 text-slate-300" />
+                      <p className="mt-3 text-sm font-bold text-slate-800">No schedules yet</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Add scan windows before attendance starts.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+                      {schedules.map((schedule) => (
+                        <ScheduleGroup
+                          key={schedule.id}
+                          loading={
+                            markAbsentMutation.isPending &&
+                            markAbsentMutation.variables === schedule.id
+                          }
+                          onMarkAbsent={() => handleMarkAbsent(schedule)}
+                          onSelectSession={(sessionId) => setSelectedSessionId(sessionId)}
+                          recordCountsBySession={recordCountsBySession}
+                          schedule={schedule}
+                          selectedSessionId={selectedSessionId}
+                          sessions={sessionsBySchedule.get(schedule.id) ?? []}
                         />
-                        {searchQuery && (
-                          <button
-                            type="button"
-                            aria-label="Clear search"
-                            onClick={() => setSearchQuery('')}
-                            className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        )}
+                      ))}
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
+            </aside>
+
+            <section className="min-w-0 space-y-4">
+              <section className="grid auto-rows-fr grid-cols-2 gap-3 lg:grid-cols-4">
+                <SummaryStat
+                  label="Checked in"
+                  value={stats.checkedIn}
+                  helper={`${stats.rate}% rate`}
+                  tone="brand"
+                />
+                <SummaryStat
+                  label="Present"
+                  value={stats.present}
+                  helper={`${stats.total} total`}
+                  tone="success"
+                />
+                <SummaryStat label="Late" value={stats.late} helper="After grace" tone="warning" />
+                <SummaryStat
+                  label="Absent"
+                  value={stats.absent}
+                  helper="Marked missing"
+                  tone="danger"
+                />
+              </section>
+
+              <Card className="min-h-[432px]">
+                <CardBody className="p-0">
+                  <div className="border-b border-slate-100 p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="min-w-0">
+                        <h3 className="font-display text-base font-bold text-slate-900">
+                          {selectedSession ? selectedSession.label : 'Scan logs'}
+                        </h3>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {selectedSession
+                            ? `${selectedSession.scheduleLabel} - ${formatSessionWindow(selectedSession)}`
+                            : `${records.length} ${records.length === 1 ? 'entry' : 'entries'}`}
+                        </p>
                       </div>
 
-                      {hasFilters && (
-                        <Button
-                          className="h-10 shrink-0"
-                          variant="secondary"
-                          onClick={clearFilters}
-                        >
-                          Clear
-                        </Button>
-                      )}
+                      <div className="flex flex-col gap-2 sm:flex-row lg:min-w-[380px] lg:justify-end">
+                        <div className="relative w-full sm:max-w-xs">
+                          <label htmlFor="attendance-search" className="sr-only">
+                            Search logs
+                          </label>
+                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                          <input
+                            id="attendance-search"
+                            type="search"
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder="Search student or ID"
+                            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm text-slate-800 transition-all placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                          />
+                          {searchQuery && (
+                            <button
+                              type="button"
+                              aria-label="Clear search"
+                              onClick={() => setSearchQuery('')}
+                              className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+
+                        {hasFilters && (
+                          <Button
+                            className="h-10 shrink-0"
+                            variant="secondary"
+                            onClick={clearFilters}
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {recordsLoading ? (
-                  <div className="flex justify-center py-24">
-                    <Spinner size="lg" />
-                  </div>
-                ) : filteredRecords.length === 0 ? (
-                  <EmptyTableState hasFilters={hasFilters} onClear={clearFilters} />
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[820px] text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-100 bg-slate-50/80 text-left">
-                          <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                            Student
-                          </th>
-                          <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                            Session
-                          </th>
-                          <th className="px-6 py-4 text-center text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                            Status
-                          </th>
-                          <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                            When
-                          </th>
-                          <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                            Checked by
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {filteredRecords.map((record) => (
-                          <tr key={record.id} className="transition-colors hover:bg-slate-50/80">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-brand-100 bg-brand-50 text-xs font-bold text-brand-700">
-                                  {record.initials}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="truncate font-bold text-slate-900">
-                                    {record.studentName}
-                                  </p>
-                                  <p className="font-mono text-[11px] text-slate-500">
-                                    {record.studentCode}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex flex-col">
-                                <span className="font-semibold text-slate-700">
-                                  {record.sessionLabel}
-                                </span>
-                                <span className="text-xs text-slate-400">
-                                  {record.scheduleLabel}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <StatusBadge status={record.status} />
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex flex-col">
-                                <span className="font-bold text-slate-700">
-                                  {formatTime(record.timestamp)}
-                                </span>
-                                <span className="text-xs text-slate-400">
-                                  {formatShortDate(record.timestamp)}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="font-medium text-slate-600">{record.scannedBy}</span>
-                            </td>
+                  {recordsLoading ? (
+                    <div className="flex justify-center py-24">
+                      <Spinner size="lg" />
+                    </div>
+                  ) : filteredRecords.length === 0 ? (
+                    <EmptyTableState hasFilters={hasFilters} onClear={clearFilters} />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[760px] text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-100 bg-slate-50/80 text-left">
+                            <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                              Student
+                            </th>
+                            <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                              Session
+                            </th>
+                            <th className="px-5 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                              Status
+                            </th>
+                            <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                              Time
+                            </th>
+                            <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                              Checked by
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardBody>
-            </Card>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {filteredRecords.map((record) => (
+                            <tr key={record.id} className="transition-colors hover:bg-slate-50/80">
+                              <td className="px-5 py-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-brand-100 bg-brand-50 text-xs font-bold text-brand-700">
+                                    {record.initials}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="truncate font-bold text-slate-900">
+                                      {record.studentName}
+                                    </p>
+                                    <p className="font-mono text-[11px] text-slate-500">
+                                      {record.studentCode}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-5 py-3">
+                                <div className="flex flex-col">
+                                  <span className="font-semibold text-slate-700">
+                                    {record.sessionLabel}
+                                  </span>
+                                  <span className="text-xs text-slate-400">
+                                    {record.scheduleLabel}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-5 py-3 text-center">
+                                <StatusBadge status={record.status} />
+                              </td>
+                              <td className="px-5 py-3">
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-slate-700">
+                                    {formatTime(record.timestamp)}
+                                  </span>
+                                  <span className="text-xs text-slate-400">
+                                    {formatShortDate(record.timestamp)}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-5 py-3">
+                                <span className="font-medium text-slate-600">
+                                  {record.scannedBy}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
+            </section>
           </div>
         )}
       </div>
@@ -613,54 +572,45 @@ export function AttendancePage() {
   );
 }
 
-function DetailChip({ label }: { label: string }) {
-  return (
-    <span className="max-w-full truncate rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-      {label}
-    </span>
-  );
-}
-
-function CompactMetric({
-  icon: Icon,
+function SummaryStat({
   label,
   value,
   helper,
   tone,
 }: {
-  icon: LucideIcon;
   label: string;
   value: number;
   helper: string;
   tone: MetricTone;
 }) {
-  const styles = metricToneClasses[tone];
+  const toneClass: Record<MetricTone, string> = {
+    slate: 'text-slate-700',
+    success: 'text-success-700',
+    warning: 'text-warning-700',
+    danger: 'text-danger-700',
+    brand: 'text-brand-700',
+  };
 
   return (
-    <div className={cn('rounded-xl border p-3', styles.shell)}>
-      <div className="flex items-center gap-3">
-        <div
-          className={cn(
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border',
-            styles.icon
-          )}
-        >
-          <Icon className="h-4 w-4" />
+    <Card className="h-full">
+      <CardBody className="flex h-full min-h-[112px] flex-col justify-between p-4">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+        <div>
+          <p className={cn('font-display text-3xl font-bold leading-none', toneClass[tone])}>
+            {value}
+          </p>
+          <p className="mt-1 text-xs font-medium text-slate-500">{helper}</p>
         </div>
-        <div className="min-w-0">
-          <p className="font-display text-xl font-bold leading-none">{value}</p>
-          <p className="mt-0.5 truncate text-[11px] font-bold uppercase tracking-wider">{label}</p>
-        </div>
-      </div>
-      <p className="mt-2 truncate text-xs opacity-75">{helper}</p>
-    </div>
+      </CardBody>
+    </Card>
   );
 }
 
-function ScheduleCard({
+function ScheduleGroup({
   loading,
   onMarkAbsent,
   onSelectSession,
+  recordCountsBySession,
   schedule,
   selectedSessionId,
   sessions,
@@ -668,17 +618,17 @@ function ScheduleCard({
   loading: boolean;
   onMarkAbsent: () => void;
   onSelectSession: (sessionId: string) => void;
+  recordCountsBySession: Map<string, number>;
   schedule: RawAttendanceSchedule;
   selectedSessionId: string;
   sessions: DisplaySession[];
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="flex items-start justify-between gap-3">
+    <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+      <div className="flex items-center justify-between gap-3 px-1 pb-2">
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-slate-900">{schedule.label}</p>
-          <p className="mt-0.5 text-xs text-slate-500">
-            {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}
+          <p className="truncate text-xs font-bold uppercase tracking-wider text-slate-500">
+            {schedule.label}
           </p>
         </div>
         <Button
@@ -692,7 +642,7 @@ function ScheduleCard({
         </Button>
       </div>
 
-      <div className="mt-3 space-y-1.5">
+      <div className="space-y-1.5">
         {sessions.length === 0 ? (
           <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
             No sessions configured.
@@ -710,9 +660,12 @@ function ScheduleCard({
                   : 'border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-200 hover:bg-white'
               )}
             >
-              <span className="text-xs font-bold">{session.label}</span>
-              <span className="text-right text-[11px] font-medium text-slate-500">
-                {formatSessionWindow(session)}
+              <span>
+                <span className="block text-xs font-bold">{session.label}</span>
+                <span className="text-[11px] text-slate-500">{formatSessionWindow(session)}</span>
+              </span>
+              <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 ring-1 ring-slate-200">
+                {recordCountsBySession.get(session.id) ?? 0}
               </span>
             </button>
           ))
