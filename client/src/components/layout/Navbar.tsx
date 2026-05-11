@@ -1,6 +1,5 @@
-import { Bell, Menu, Search } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { Badge } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
 interface NavbarProps {
@@ -8,12 +7,12 @@ interface NavbarProps {
   title?: string;
 }
 
-const roleColors: Record<string, string> = {
-  President:  'primary',
-  Secretary:  'info',
-  Officer:    'warning',
-  Committee:  'default',
-  Attendance: 'success',
+const rolePill: Record<string, string> = {
+  President:  'bg-brand-100 text-brand-700',
+  Secretary:  'bg-blue-100 text-blue-700',
+  Officer:    'bg-amber-100 text-amber-700',
+  Committee:  'bg-slate-100 text-slate-600',
+  Attendance: 'bg-emerald-100 text-emerald-700',
 };
 
 export function Navbar({ onMenuClick, title }: NavbarProps) {
@@ -25,7 +24,7 @@ export function Navbar({ onMenuClick, title }: NavbarProps) {
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="rounded-lg p-2 text-slate-500 hover:bg-surface-subtle transition-colors md:hidden"
+          className="rounded-lg p-2 text-slate-400 hover:bg-surface-subtle hover:text-slate-600 transition-colors md:hidden"
           aria-label="Toggle menu"
         >
           <Menu className="h-5 w-5" />
@@ -36,37 +35,32 @@ export function Navbar({ onMenuClick, title }: NavbarProps) {
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-2">
-        {/* Search trigger (placeholder) */}
-        <button className="hidden md:flex items-center gap-2 rounded-lg border border-surface-border bg-surface-muted px-3 py-1.5 text-sm text-slate-400 hover:border-brand-300 transition-colors w-52">
-          <Search className="h-3.5 w-3.5" />
-          <span>Search…</span>
-          <kbd className="ml-auto text-xs bg-surface-border rounded px-1">⌘K</kbd>
-        </button>
-
+      <div className="flex items-center gap-1.5">
         {/* Notifications */}
-        <button className="relative rounded-lg p-2 text-slate-500 hover:bg-surface-subtle transition-colors focus-ring">
-          <Bell className="h-5 w-5" />
-          {/* Unread dot */}
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger" />
+        <button className="relative rounded-lg p-2 text-slate-400 hover:bg-surface-subtle hover:text-slate-600 transition-colors focus-ring">
+          <Bell className="h-4.5 w-4.5" style={{ width: '1.125rem', height: '1.125rem' }} />
+          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-danger ring-2 ring-white" />
         </button>
 
-        {/* Avatar */}
+        {/* Divider */}
+        <div className="mx-1 h-6 w-px bg-surface-border" />
+
+        {/* Avatar + info */}
         {user && (
-          <div className="flex items-center gap-2.5 pl-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-brand-700 text-xs font-semibold">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-white text-xs font-semibold shadow-sm">
               {user.name.first[0]}{user.name.last[0]}
             </div>
             <div className="hidden md:block">
-              <p className="text-xs font-medium text-slate-800 leading-none">
+              <p className="text-xs font-semibold text-slate-800 leading-none">
                 {user.name.first} {user.name.last}
               </p>
-              <Badge
-                variant={roleColors[user.role] as Parameters<typeof Badge>[0]['variant']}
-                className={cn('mt-0.5 text-[10px] px-1.5 py-0')}
-              >
+              <span className={cn(
+                'mt-1 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none',
+                rolePill[user.role] ?? 'bg-slate-100 text-slate-600'
+              )}>
                 {user.role}
-              </Badge>
+              </span>
             </div>
           </div>
         )}

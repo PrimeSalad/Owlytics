@@ -25,8 +25,10 @@ export const useAuthStore = create<AuthState>()(
           const { data, error } = await supabase.auth.signInWithPassword({ email, password });
           if (error || !data.session) throw new Error(error?.message ?? 'Login failed');
 
-          // Fetch full profile from our backend
-          const { data: profile } = await api.get<User>('/auth/me');
+          // Pass token directly — don't rely on interceptor timing
+          const { data: profile } = await api.get<User>('/auth/me', {
+            headers: { Authorization: `Bearer ${data.session.access_token}` },
+          });
           set({ user: profile });
         } finally {
           set({ isLoading: false });

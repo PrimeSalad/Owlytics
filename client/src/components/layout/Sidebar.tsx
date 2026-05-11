@@ -6,6 +6,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import type { UserRole } from '@/types';
+import logo from '@/assets/logo.png';
 
 interface NavItem {
   label: string;
@@ -31,80 +32,87 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { user, logout } = useAuthStore();
-
   const visible = NAV_ITEMS.filter((item) => user && item.roles.includes(user.role));
 
   return (
     <aside
       className={cn(
-        'flex h-screen flex-col text-white transition-all duration-300 ease-in-out',
-        collapsed ? 'w-16' : 'w-60'
+        'relative flex h-screen flex-col bg-[#0a1612] text-white transition-all duration-200 shrink-0 border-r border-white/5',
+        collapsed ? 'w-16' : 'w-56'
       )}
-      style={{ background: 'linear-gradient(180deg, #0d1f1a 0%, #064e3b 100%)' }}
     >
       {/* Logo */}
-      <div className={cn('flex h-16 items-center border-b border-white/10 px-4', collapsed ? 'justify-center' : 'gap-3')}>
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-500 font-display text-sm font-bold">
-          S
-        </div>
-        {!collapsed && (
-          <span className="font-display text-sm font-semibold leading-tight">
-            Student<br />Monitor
-          </span>
+      <div className={cn('flex h-14 items-center px-4 border-b border-white/5', collapsed && 'justify-center')}>
+        {collapsed ? (
+          <div className="h-7 w-7 flex items-center justify-center">
+            <img src={logo} alt="Owlytics" className="h-5 w-5 object-contain brightness-0 invert" />
+          </div>
+        ) : (
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 flex items-center justify-center">
+              <img src={logo} alt="Owlytics" className="h-5 w-5 object-contain brightness-0 invert" />
+            </div>
+            <span className="font-display text-[15px] font-semibold tracking-tight">Owlytics</span>
+          </div>
         )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto py-2 px-2">
         {visible.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150',
+                'flex items-center gap-2.5 rounded px-2.5 py-2 text-[13px] font-medium transition-colors mb-0.5',
                 isActive
                   ? 'bg-brand-500 text-white'
-                  : 'text-white/60 hover:bg-white/10 hover:text-white',
-                collapsed && 'justify-center px-2'
+                  : 'text-white/50 hover:bg-white/5 hover:text-white',
+                collapsed && 'justify-center'
               )
             }
             title={collapsed ? item.label : undefined}
           >
-            <item.icon className="h-4 w-4 shrink-0" />
+            <item.icon className="h-[18px] w-[18px] shrink-0" />
             {!collapsed && <span>{item.label}</span>}
           </NavLink>
         ))}
       </nav>
 
-      {/* User + Logout */}
-      <div className="border-t border-white/10 p-3 space-y-1">
+      {/* User */}
+      <div className="border-t border-white/5 p-2">
         {!collapsed && user && (
-          <div className="px-2 py-1.5">
-            <p className="text-xs font-medium text-white truncate">{user.name.first} {user.name.last}</p>
-            <p className="text-xs text-white/40">{user.role}</p>
+          <div className="flex items-center gap-2 px-2.5 py-2 mb-1">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-white text-xs font-medium">
+              {user.name.first[0]}{user.name.last[0]}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-white truncate">{user.name.first} {user.name.last}</p>
+              <p className="text-[10px] text-white/30">{user.role}</p>
+            </div>
           </div>
         )}
         <button
           onClick={logout}
           className={cn(
-            'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors',
-            collapsed && 'justify-center px-2'
+            'flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-[13px] text-white/40 hover:bg-white/5 hover:text-white transition-colors',
+            collapsed && 'justify-center'
           )}
           title={collapsed ? 'Logout' : undefined}
         >
-          <LogOut className="h-4 w-4 shrink-0" />
+          <LogOut className="h-[18px] w-[18px] shrink-0" />
           {!collapsed && <span>Logout</span>}
         </button>
       </div>
 
-      {/* Collapse toggle */}
+      {/* Toggle */}
       <button
         onClick={onToggle}
-        className="absolute -right-3 top-20 flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-white shadow-md hover:bg-brand-600 transition-colors"
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        className="absolute -right-2.5 top-16 flex h-5 w-5 items-center justify-center rounded-full bg-[#0a1612] border border-white/10 text-white/40 hover:text-white hover:border-white/20 transition-colors"
+        aria-label={collapsed ? 'Expand' : 'Collapse'}
       >
-        <ChevronLeft className={cn('h-3.5 w-3.5 transition-transform duration-300', collapsed && 'rotate-180')} />
+        <ChevronLeft className={cn('h-3 w-3 transition-transform', collapsed && 'rotate-180')} />
       </button>
     </aside>
   );
