@@ -1,0 +1,17 @@
+import { z } from 'zod';
+
+const roles = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance'] as const;
+
+export const createUserSchema = z.object({
+  studentId: z.string().min(1),
+  name: z.object({ first: z.string().min(1), last: z.string().min(1) }),
+  email: z.string().email(),
+  password: z.string().min(8),
+  role: z.enum(roles),
+});
+
+export const updateUserSchema = z.object({
+  role: z.enum(roles).optional(),
+  isActive: z.boolean().optional(),
+  assignedCommitteeId: z.string().nullable().optional(),
+});

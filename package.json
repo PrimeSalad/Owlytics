@@ -1,0 +1,19 @@
+{
+  "name": "student-monitoring-system",
+  "private": true,
+  "workspaces": ["client", "server"],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,css,md}\""
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "prettier": "^3.4.2",
+    "eslint": "^9.18.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
