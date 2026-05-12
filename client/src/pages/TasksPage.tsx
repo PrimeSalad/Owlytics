@@ -462,19 +462,50 @@ export function TasksPage() {
 function CreateSprintModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (s: Sprint) => void }) {
   const [name, setName] = useState('');
   const [goal, setGoal] = useState('');
+  const [status, setStatus] = useState<Sprint['status']>('Planning');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
   const mutation = useMutation({
-    mutationFn: () => api.post<Sprint>('/sprints', { name, goal, startDate: startDate || undefined, endDate: endDate || undefined }),
+    mutationFn: () => api.post<Sprint>('/sprints', { name, goal, status, startDate: startDate || undefined, endDate: endDate || undefined }),
     onSuccess: (res) => { toast.success('Sprint created'); onSuccess(res.data); },
     onError: () => toast.error('Failed to create sprint'),
   });
+
+  const STATUS_OPTIONS: { value: Sprint['status']; label: string; dot: string }[] = [
+    { value: 'Planning',  label: 'Planning',  dot: 'bg-slate-400'   },
+    { value: 'Active',    label: 'Active',    dot: 'bg-green-500'   },
+    { value: 'Completed', label: 'Completed', dot: 'bg-blue-500'    },
+  ];
 
   return (
     <Modal open onClose={onClose} title="New Sprint" size="lg">
       <div className="space-y-4 pt-2">
         <Input label="Sprint Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sprint 1 — May 2026" required />
+
+        {/* Status dropdown */}
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-slate-600">Status</label>
+          <div className="flex gap-2">
+            {STATUS_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setStatus(opt.value)}
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-2 rounded-lg border-2 py-2 text-xs font-bold transition-all',
+                  status === opt.value
+                    ? cn(STATUS_COLORS[opt.value], 'border-current shadow-sm')
+                    : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300'
+                )}
+              >
+                <span className={cn('h-2 w-2 rounded-full', opt.dot)} />
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div>
           <label className="mb-1.5 block text-xs font-medium text-slate-600">Goal <span className="text-slate-400">(optional)</span></label>
           <textarea value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="What should this sprint achieve?" rows={2}
