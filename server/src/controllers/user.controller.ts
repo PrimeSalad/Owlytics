@@ -11,9 +11,11 @@ export async function listUsers(_req: Request, res: Response) {
 
   if (error) throw new AppError(500, error.message);
 
-  // Get emails from auth
-  const { data: authList } = await supabase.auth.admin.listUsers();
-  const emailMap = Object.fromEntries(authList.users.map((u) => [u.id, u.email]));
+  // Get emails from auth — admin.listUsers is paginated (max 1000 per page)
+  const { data: authList, error: authListError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+  const emailMap: Record<string, string> = authListError || !authList
+    ? {}
+    : Object.fromEntries(authList.users.map((u) => [u.id, u.email ?? '']));
 
   res.json(data.map((p) => ({
     _id: p.id,
@@ -71,11 +73,23 @@ export async function createUser(req: Request, res: Response) {
     last_name: data.name.last,
     role: data.role,
     is_active: true,
-  });
+  }, { onConflict: 'id' });
 
   if (profileError) {
     await supabase.auth.admin.deleteUser(authData.user.id);
     throw new AppError(400, profileError.message);
+  }
+
+  // Verify profile exists after upsert (auth trigger may have raced)
+  const { data: verifyProfile, error: verifyError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', authData.user.id)
+    .single();
+
+  if (verifyError || !verifyProfile) {
+    await supabase.auth.admin.deleteUser(authData.user.id);
+    throw new AppError(500, 'Profile was not created. Check your Supabase auth trigger.');
   }
 
   res.status(201).json({ _id: authData.user.id, email: data.email, role: data.role });
