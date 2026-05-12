@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, Check, Menu, X } from 'lucide-react';
+import { Bell, Check, Menu, X, Settings, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
 import { cn, roleLabel } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 interface NavbarProps { onMenuClick: () => void; title?: string; }
 interface Notification {
@@ -20,10 +21,13 @@ const rolePill: Record<string, string> = {
 };
 
 export function Navbar({ onMenuClick, title }: NavbarProps) {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications'],
@@ -41,10 +45,16 @@ export function Navbar({ onMenuClick, title }: NavbarProps) {
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-[60px] shrink-0 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-sm md:px-6">
@@ -131,21 +141,63 @@ export function Navbar({ onMenuClick, title }: NavbarProps) {
 
         {/* User */}
         {user && (
-          <div className="flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-1.5 transition-colors hover:bg-slate-50">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-[12px] font-bold text-brand-600 ring-1 ring-brand-100">
-              {user.name.first[0]}{user.name.last[0]}
-            </div>
-            <div className="hidden md:block">
-              <p className="text-[13px] font-semibold leading-none text-slate-800">
-                {user.name.first} {user.name.last}
-              </p>
-              <span className={cn(
-                'mt-1 inline-block rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider leading-none',
-                rolePill[user.role] ?? 'bg-slate-100 text-slate-600',
-              )}>
-                {roleLabel(user.role)}
-              </span>
-            </div>
+          <div className="relative" ref={profileRef}>
+            <button
+              onClick={() => setProfileOpen(!profileOpen)}
+              className="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 transition-colors hover:bg-slate-50 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-[12px] font-bold text-brand-600 ring-1 ring-brand-100 overflow-hidden">
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                ) : (
+                  <>{user.name.first[0]}{user.name.last[0]}</>
+                )}
+              </div>
+              <div className="hidden md:block">
+                <p className="text-[13px] font-semibold leading-none text-slate-800">
+                  {user.name.first} {user.name.last}
+                </p>
+                <span className={cn(
+                  'mt-1 inline-block rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider leading-none',
+                  rolePill[user.role] ?? 'bg-slate-100 text-slate-600',
+                )}>
+                  {roleLabel(user.role)}
+                </span>
+              </div>
+            </button>
+
+            {profileOpen && (
+              <div className="absolute right-0 mt-2 w-56 animate-fade-up overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
+                <div className="border-b border-slate-100 px-4 py-3 md:hidden">
+                  <p className="text-sm font-semibold text-slate-800">
+                    {user.name.first} {user.name.last}
+                  </p>
+                  <p className="text-xs text-slate-500">{user.email}</p>
+                </div>
+                <div className="p-2">
+                  <button
+                    onClick={() => {
+                      setProfileOpen(false);
+                      navigate('/settings');
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <Settings className="h-4 w-4 text-slate-400" />
+                    Profile & Settings
+                  </button>
+                  <button
+                    onClick={() => {
+                      setProfileOpen(false);
+                      handleLogout();
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-danger-600 transition hover:bg-danger-50"
+                  >
+                    <LogOut className="h-4 w-4 text-danger-400" />
+                    Log Out
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

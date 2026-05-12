@@ -102,10 +102,48 @@ export async function updateUser(req: Request, res: Response) {
   const data = updateUserSchema.parse(req.body);
   const userId = req.params.id;
   
-  const updatePayload: Record<string, unknown> = {};
-  if (data.role) updatePayload.role = data.role;
-  if (data.isActive !== undefined) updatePayload.is_active = data.isActive;
+  // Security check: Only President can update others or change roles/status
+  const isSelfUpdate = req.user!.userId === userId;
+  const isPresident = req.user!.role === 'President';
   
+  if (!isSelfUpdate && !isPresident) {
+    throw new AppError(403, 'Insufficient permissions to update this user');
+  }
+
+  const updatePayload: Record<string, unknown> = {};
+  
+  // Only President can update role and isActive
+  if (isPresident) {
+    if (data.role) updatePayload.role = data.role;
+    if (data.isActive !== undefined) updatePayload.is_active = data.isActive;
+  } else {
+    if (data.role || data.isActive !== undefined) {
+      throw new AppError(403, 'You do not have permission to change roles or active status');
+    }
+  }
+
+  // Profile data (can be updated by self or President)
+  if (data.name) {
+    updatePayload.first_name = data.name.first;
+    updatePayload.last_name = data.name.last;
+    
+    // Also update auth user metadata if name changes
+    await supabase.auth.admin.updateUserById(userId as string, {
+      user_metadata: { first_name: data.name.first, last_name: data.name.last }
+    });
+  }
+
+  if (data.avatarImage !== undefined) {
+    updatePayload.avatar_url = data.avatarImage;
+  } else if (data.avatarUrl !== undefined) {
+    updatePayload.avatar_url = data.avatarUrl;
+  }
+  
+  // Need something to update
+  if (Object.keys(updatePayload).length === 0) {
+    return res.json({ message: 'Nothing to update' });
+  }
+
   const { error } = await supabase.from('profiles').update(updatePayload).eq('id', userId);
 
   if (error) throw new AppError(500, error.message);

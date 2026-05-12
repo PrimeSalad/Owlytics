@@ -15,4 +15,7 @@ export const updateUserSchema = z.object({
   isActive: z.boolean().optional(),
   assignedCommitteeId: z.string().nullable().optional(),
   assignedSection: z.string().nullable().optional(),
+  name: z.object({ first: z.string().min(1), last: z.string().min(1) }).optional(),
+  avatarUrl: z.string().nullable().optional(),
+  avatarImage: z.string().nullable().optional(), // For base64 images if needed
 });
