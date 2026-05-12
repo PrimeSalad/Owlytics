@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, ClipboardList,
-  FileText, QrCode, LogOut, ChevronLeft, GraduationCap, ShieldCheck, CheckSquare, Settings, Info,
+  FileText, QrCode, LogOut, ChevronLeft, GraduationCap, ShieldCheck, CheckSquare, ListTodo, Settings, Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
@@ -12,6 +12,7 @@ interface NavItem { label: string; to: string; icon: React.ElementType; roles: U
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard',         to: '/dashboard',  icon: LayoutDashboard, roles: ['President','Secretary','Officer','Committee','Attendance'] },
+  { label: 'To Do',             to: '/todo',       icon: ListTodo,        roles: ['President','Secretary','Officer','Committee','Attendance'] },
   { label: 'People',            to: '/people',     icon: ShieldCheck,     roles: ['President','Secretary'] },
   { label: 'Student Directory', to: '/students',   icon: GraduationCap,   roles: ['President','Secretary','Officer'] },
   { label: 'Tasks',             to: '/tasks',      icon: CheckSquare,     roles: ['President','Secretary','Officer'] },

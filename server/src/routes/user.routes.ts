@@ -7,7 +7,7 @@ export const userRouter = Router();
 
 userRouter.use(requireAuth);
 
-userRouter.get('/', requireRole('President', 'Secretary'), listUsers);
+userRouter.get('/', requireRole('President', 'Secretary', 'Officer'), listUsers);
 userRouter.post('/', requireRole('President'), createUser);
 // Only President can manage accounts
 userRouter.patch('/:id', requireRole('President'), updateUser);

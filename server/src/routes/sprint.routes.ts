@@ -7,6 +7,6 @@ export const sprintRouter = Router();
 sprintRouter.use(requireAuth);
 
 sprintRouter.get('/', listSprints);
-sprintRouter.post('/', requireRole('President', 'Secretary'), createSprint);
-sprintRouter.patch('/:id', requireRole('President', 'Secretary'), updateSprint);
-sprintRouter.delete('/:id', requireRole('President', 'Secretary'), deleteSprint);
+sprintRouter.post('/', requireRole('President', 'Secretary', 'Officer'), createSprint);
+sprintRouter.patch('/:id', requireRole('President', 'Secretary', 'Officer'), updateSprint);
+sprintRouter.delete('/:id', requireRole('President', 'Secretary', 'Officer'), deleteSprint);

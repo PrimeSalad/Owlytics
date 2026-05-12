@@ -12,6 +12,7 @@ import { ReportsPage } from '@/pages/ReportsPage';
 import { MembersPage } from '@/pages/MembersPage';
 import { StudentsPage } from '@/pages/StudentsPage';
 import { TasksPage } from '@/pages/TasksPage';
+import { TodoPage } from '@/pages/TodoPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { AboutPage } from '@/pages/AboutPage';
 
@@ -35,6 +36,7 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/todo" element={<TodoPage />} />
             <Route path="/events" element={<EventsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
