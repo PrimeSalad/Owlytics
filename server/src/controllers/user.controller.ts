@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
 import { createUserSchema, updateUserSchema } from '../validators/user.validator';
+import { logAction } from '../utils/auditLogger';
 
 export async function listUsers(_req: Request, res: Response) {
   const { data, error } = await supabase
@@ -92,6 +93,8 @@ export async function createUser(req: Request, res: Response) {
     throw new AppError(500, 'Profile was not created. Check your Supabase auth trigger.');
   }
 
+  await logAction(req.user!.userId, 'CREATE', 'USER', `Created new user ${data.name.first} ${data.name.last} (${data.role})`);
+
   res.status(201).json({ _id: authData.user.id, email: data.email, role: data.role });
 }
 
@@ -106,6 +109,9 @@ export async function updateUser(req: Request, res: Response) {
   const { error } = await supabase.from('profiles').update(updatePayload).eq('id', userId);
 
   if (error) throw new AppError(500, error.message);
+  
+  await logAction(req.user!.userId, 'UPDATE', 'USER', `Updated user ID ${userId} profile`);
+
   res.json({ message: 'User updated successfully' });
 }
 
@@ -114,5 +120,8 @@ export async function deactivateUser(req: Request, res: Response) {
   await supabase.auth.admin.deleteUser(id);
   const { error } = await supabase.from('profiles').delete().eq('id', id);
   if (error) throw new AppError(500, error.message);
+  
+  await logAction(req.user!.userId, 'DELETE', 'USER', `Deleted user account ID ${id}`);
+
   res.json({ message: 'Account deleted' });
 }

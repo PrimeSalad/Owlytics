@@ -15,6 +15,7 @@ import { TasksPage } from '@/pages/TasksPage';
 import { TodoPage } from '@/pages/TodoPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { AboutPage } from '@/pages/AboutPage';
+import LogsPage from '@/pages/LogsPage';
 
 
 export default function App() {
@@ -63,6 +64,11 @@ export default function App() {
             {/* Attendance role only */}
             <Route element={<ProtectedRoute roles={['Attendance']} />}>
               <Route path="/scanner" element={<ScannerPage />} />
+            </Route>
+
+            {/* President only */}
+            <Route element={<ProtectedRoute roles={['President']} />}>
+              <Route path="/logs" element={<LogsPage />} />
             </Route>
           </Route>
         </Route>
