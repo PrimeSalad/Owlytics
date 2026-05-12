@@ -12,9 +12,9 @@ export const studentRouter = Router();
 studentRouter.use(requireAuth);
 
 studentRouter.get('/', requireRole('Secretary', 'Officer', 'President'), listStudents);
-studentRouter.post('/', requireRole('Secretary'), createStudent);
-studentRouter.post('/import', requireRole('Secretary'), upload.single('file'), importStudents);
+studentRouter.post('/', requireRole('President', 'Secretary'), createStudent);
+studentRouter.post('/import', requireRole('President', 'Secretary'), upload.single('file'), importStudents);
 studentRouter.get('/:id', requireRole('Secretary', 'Officer', 'President', 'Attendance'), getStudent);
-studentRouter.patch('/:id', requireRole('Secretary'), updateStudent);
-studentRouter.delete('/:id', requireRole('Secretary'), deleteStudent);
-studentRouter.get('/:id/qr', requireRole('Secretary', 'Attendance'), getStudentQR);
+studentRouter.patch('/:id', requireRole('President', 'Secretary'), updateStudent);
+studentRouter.delete('/:id', requireRole('President', 'Secretary'), deleteStudent);
+studentRouter.get('/:id/qr', requireRole('President', 'Secretary', 'Attendance'), getStudentQR);

@@ -1,10 +1,12 @@
 -- ============================================================
 -- Student Monitoring System — Supabase SQL Schema
 -- Run this in: Supabase Dashboard → SQL Editor → New query
+-- Best used on a fresh Supabase project.
 -- ============================================================
 
--- Enable UUID extension
+-- Extensions
 create extension if not exists "uuid-ossp";
+create extension if not exists "pg_trgm";
 
 -- ── Enums ────────────────────────────────────────────────────
 create type user_role as enum ('President','Secretary','Officer','Committee','Attendance');
@@ -57,7 +59,8 @@ create table events (
   status       event_status not null default 'Planning',
   created_by   uuid references profiles(id),
   created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now()
+  updated_at   timestamptz not null default now(),
+  constraint events_date_range_valid check (end_date >= start_date)
 );
 
 -- event ↔ officer junction
@@ -78,7 +81,8 @@ create table activities (
   committee_id uuid references profiles(id),
   status       activity_status not null default 'Pending',
   created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now()
+  updated_at   timestamptz not null default now(),
+  constraint activities_time_range_valid check (end_time >= start_time)
 );
 
 -- ── activity_updates ─────────────────────────────────────────
@@ -105,6 +109,12 @@ create table attendance_schedules (
   created_at timestamptz not null default now()
 );
 
+create table attendance_schedule_scanners (
+  schedule_id uuid references attendance_schedules(id) on delete cascade,
+  scanner_id  uuid references profiles(id) on delete cascade,
+  primary key (schedule_id, scanner_id)
+);
+
 -- ── attendance_sessions ───────────────────────────────────────
 create table attendance_sessions (
   id                   uuid primary key default uuid_generate_v4(),
@@ -112,7 +122,8 @@ create table attendance_sessions (
   label                session_label not null,
   open_at              timestamptz not null,
   close_at             timestamptz not null,
-  grace_period_minutes smallint not null default 15
+  grace_period_minutes smallint not null default 15 check (grace_period_minutes >= 0),
+  constraint attendance_sessions_time_range_valid check (close_at > open_at)
 );
 
 -- ── attendance_records ────────────────────────────────────────
@@ -169,11 +180,16 @@ create table notifications (
 );
 
 -- ── Indexes ───────────────────────────────────────────────────
-create index on attendance_records (event_id);
-create index on attendance_records (student_id);
-create index on activities (event_id);
-create index on reports (event_id, type);
-create index on notifications (recipient_id, is_read);
+create index idx_profiles_role_active on profiles (role, is_active);
+create index idx_students_year_section on students (year_level, section);
+create index idx_students_search_trgm on students
+  using gin ((student_id || ' ' || first_name || ' ' || last_name) gin_trgm_ops);
+create index idx_events_status_dates on events (status, start_date, end_date);
+create index idx_attendance_records_event on attendance_records (event_id);
+create index idx_attendance_records_student on attendance_records (student_id);
+create index idx_activities_event on activities (event_id);
+create index idx_reports_event_type on reports (event_id, type);
+create index idx_notifications_recipient_read on notifications (recipient_id, is_read);
 
 -- ── RLS: disable for now (enable per-table when deploying) ────
 alter table profiles               enable row level security;
@@ -182,10 +198,13 @@ alter table events                 enable row level security;
 alter table event_officers         enable row level security;
 alter table activities             enable row level security;
 alter table activity_updates       enable row level security;
+alter table activity_update_attachments enable row level security;
 alter table attendance_schedules   enable row level security;
+alter table attendance_schedule_scanners enable row level security;
 alter table attendance_sessions    enable row level security;
 alter table attendance_records     enable row level security;
 alter table reports                enable row level security;
+alter table report_attachments     enable row level security;
 alter table notifications          enable row level security;
 
 -- Allow service_role full access (backend uses service_role key — bypasses RLS)
@@ -206,15 +225,30 @@ create trigger trg_reports_updated_at     before update on reports     for each 
 -- ── Auto-create profile on auth.users insert ─────────────────
 create or replace function handle_new_user()
 returns trigger language plpgsql security definer as $$
+declare
+  selected_role user_role := 'Committee';
 begin
-  insert into profiles (id, student_id, first_name, last_name, role)
+  if new.raw_user_meta_data ? 'role'
+     and new.raw_user_meta_data->>'role' in ('President','Secretary','Officer','Committee','Attendance') then
+    selected_role := (new.raw_user_meta_data->>'role')::user_role;
+  end if;
+
+  insert into profiles (id, student_id, first_name, last_name, role, is_active)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'student_id', new.id::text),
     coalesce(new.raw_user_meta_data->>'first_name', 'User'),
     coalesce(new.raw_user_meta_data->>'last_name', ''),
-    coalesce((new.raw_user_meta_data->>'role')::user_role, 'Committee')
-  );
+    selected_role,
+    true
+  )
+  on conflict (id) do update set
+    student_id = excluded.student_id,
+    first_name = excluded.first_name,
+    last_name = excluded.last_name,
+    role = excluded.role,
+    is_active = excluded.is_active,
+    updated_at = now();
   return new;
 end;
 $$;
@@ -222,3 +256,8 @@ $$;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function handle_new_user();
+
+-- Bootstrap note:
+-- Create the first President from Supabase Authentication → Add user, then set raw_user_meta_data:
+-- {"student_id":"ADMIN-001","first_name":"Admin","last_name":"President","role":"President"}
+-- After that, use the app's People page to create the rest of the account access.

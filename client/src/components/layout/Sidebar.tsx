@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, CalendarDays,
+  LayoutDashboard, CalendarDays,
   ClipboardList, FileText, QrCode, LogOut, ChevronLeft,
+  GraduationCap, ShieldCheck,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -17,12 +18,13 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard',  to: '/dashboard',  icon: LayoutDashboard, roles: ['President','Secretary','Officer','Committee','Attendance'] },
-  { label: 'People',     to: '/directory',  icon: Users,           roles: ['President','Secretary','Officer'] },
-  { label: 'Events',     to: '/events',     icon: CalendarDays,    roles: ['President','Secretary','Officer','Committee'] },
-  { label: 'Attendance', to: '/attendance', icon: ClipboardList,   roles: ['President','Secretary','Attendance'] },
-  { label: 'Scanner',    to: '/scanner',    icon: QrCode,          roles: ['Attendance'] },
-  { label: 'Reports',    to: '/reports',    icon: FileText,        roles: ['President','Secretary','Officer','Committee'] },
+  { label: 'Dashboard',         to: '/dashboard',  icon: LayoutDashboard, roles: ['President','Secretary','Officer','Committee','Attendance'] },
+  { label: 'People',            to: '/people',     icon: ShieldCheck,     roles: ['President','Secretary'] },
+  { label: 'Student Directory', to: '/students',   icon: GraduationCap,   roles: ['President','Secretary','Officer'] },
+  { label: 'Events',            to: '/events',     icon: CalendarDays,    roles: ['President','Secretary','Officer','Committee'] },
+  { label: 'Attendance',        to: '/attendance', icon: ClipboardList,   roles: ['President','Secretary','Attendance'] },
+  { label: 'Scanner',           to: '/scanner',    icon: QrCode,          roles: ['Attendance'] },
+  { label: 'Reports',           to: '/reports',    icon: FileText,        roles: ['President','Secretary','Officer','Committee'] },
 ];
 
 

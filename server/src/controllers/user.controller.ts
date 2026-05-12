@@ -31,7 +31,6 @@ export async function listUsers(_req: Request, res: Response) {
 export async function createUser(req: Request, res: Response) {
   const data = createUserSchema.parse(req.body);
 
-  // Create Supabase auth user
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
     email: data.email,
     password: data.password,
@@ -46,8 +45,19 @@ export async function createUser(req: Request, res: Response) {
 
   if (authError) throw new AppError(400, authError.message);
 
-  // Update profile role (trigger creates it, but role may default to Committee)
-  await supabase.from('profiles').update({ role: data.role }).eq('id', authData.user.id);
+  const { error: profileError } = await supabase.from('profiles').upsert({
+    id: authData.user.id,
+    student_id: data.studentId,
+    first_name: data.name.first,
+    last_name: data.name.last,
+    role: data.role,
+    is_active: true,
+  });
+
+  if (profileError) {
+    await supabase.auth.admin.deleteUser(authData.user.id);
+    throw new AppError(400, profileError.message);
+  }
 
   res.status(201).json({ _id: authData.user.id, email: data.email, role: data.role });
 }

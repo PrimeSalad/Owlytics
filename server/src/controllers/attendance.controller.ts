@@ -12,13 +12,30 @@ export async function createSchedule(req: Request, res: Response) {
   if (error) throw new AppError(400, error.message);
 
   if (data.sessions?.length) {
-    await supabase.from('attendance_sessions').insert(
+    const { error: sessionsError } = await supabase.from('attendance_sessions').insert(
       data.sessions.map((s) => ({
         schedule_id: schedule.id, label: s.label,
         open_at: s.openAt, close_at: s.closeAt,
         grace_period_minutes: s.gracePeriodMinutes,
       }))
     );
+    if (sessionsError) {
+      await supabase.from('attendance_schedules').delete().eq('id', schedule.id);
+      throw new AppError(400, sessionsError.message);
+    }
+  }
+
+  if (data.assignedScanners?.length) {
+    const { error: scannersError } = await supabase.from('attendance_schedule_scanners').insert(
+      data.assignedScanners.map((scannerId) => ({
+        schedule_id: schedule.id,
+        scanner_id: scannerId,
+      }))
+    );
+    if (scannersError) {
+      await supabase.from('attendance_schedules').delete().eq('id', schedule.id);
+      throw new AppError(400, scannersError.message);
+    }
   }
 
   res.status(201).json(schedule);

@@ -10,6 +10,15 @@ To fully digitize and streamline student organization operations through QR-base
 
 ---
 
+## Current Build Flow
+
+- **People (`/people`)** is for account access only: create login credentials, assign roles, activate/deactivate users, and control who can enter the system.
+- **Student Directory (`/students`)** is for student records only: add/edit/remove students that will be used for attendance, QR, reports, and directory lookup.
+- **Supabase setup** is stored in `supabase_schema.sql`. Paste that SQL in the Supabase SQL Editor on a fresh project before running the app.
+- **Permission rule:** President manages account access. President and Secretary manage student records. Officers can view the student directory.
+
+---
+
 ## 🛠️ Tech Stack
 
 ### Frontend (`/client`)

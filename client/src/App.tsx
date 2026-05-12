@@ -7,7 +7,8 @@ import { EventsPage } from '@/pages/EventsPage';
 import { AttendancePage } from '@/pages/AttendancePage';
 import { ScannerPage } from '@/pages/ScannerPage';
 import { ReportsPage } from '@/pages/ReportsPage';
-import { DirectoryPage } from '@/pages/DirectoryPage';
+import { MembersPage } from '@/pages/MembersPage';
+import { StudentsPage } from '@/pages/StudentsPage';
 
 
 export default function App() {
@@ -25,12 +26,16 @@ export default function App() {
             <Route path="/events" element={<EventsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
 
-            {/* Combined Directory — Accessible by President, Secretary, Officer */}
+            {/* People — account access management */}
+            <Route element={<ProtectedRoute roles={['President', 'Secretary']} />}>
+              <Route path="/people" element={<MembersPage />} />
+              <Route path="/members" element={<Navigate to="/people" replace />} />
+            </Route>
+
+            {/* Student Directory — student records */}
             <Route element={<ProtectedRoute roles={['President', 'Secretary', 'Officer']} />}>
-              <Route path="/directory" element={<DirectoryPage />} />
-              {/* Redirect old paths */}
-              <Route path="/students" element={<Navigate to="/directory" replace />} />
-              <Route path="/members" element={<Navigate to="/directory" replace />} />
+              <Route path="/students" element={<StudentsPage />} />
+              <Route path="/directory" element={<Navigate to="/students" replace />} />
             </Route>
 
             {/* Secretary + President */}
@@ -51,4 +56,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-
