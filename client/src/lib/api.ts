@@ -18,9 +18,9 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 && !err.config._retry) {
+      err.config._retry = true;
       supabase.auth.signOut();
-      window.location.href = '/login';
     }
     return Promise.reject(err);
   }

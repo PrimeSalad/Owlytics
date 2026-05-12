@@ -2,32 +2,39 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
 
-export async function listTasks(_req: Request, res: Response) {
+export async function listTasks(req: Request, res: Response) {
   const { data, error } = await supabase
     .from('tasks')
-    .select('*, created_by:users!tasks_created_by_fkey(id,first_name,last_name,role)')
+    .select('*, created_by:profiles(id,first_name,last_name,role)')
     .order('created_at', { ascending: false });
   if (error) throw new AppError(500, error.message);
   
-  const tasks = (data ?? []).map((t: any) => ({
-    _id: t.id,
-    title: t.title,
-    description: t.description,
-    status: t.status,
-    assignees: t.assignees || [],
-    createdBy: t.created_by ? { _id: t.created_by.id, name: { first: t.created_by.first_name, last: t.created_by.last_name }, role: t.created_by.role } : null,
-    comments: t.comments || [],
-    attachments: t.attachments || [],
-    viewingNow: t.viewing_now || [],
-    createdAt: t.created_at,
-    updatedAt: t.updated_at,
-  }));
+  const userRole = req.user!.role;
+  const canSeeAll = userRole === 'President' || userRole === 'Secretary';
+  
+  const tasks = (data ?? [])
+    .filter((t: any) => canSeeAll || (t.visible_to && t.visible_to.includes(userRole)))
+    .map((t: any) => ({
+      _id: t.id,
+      title: t.title,
+      description: t.description,
+      status: t.status,
+      assignees: t.assignees || [],
+      visible_to: t.visible_to || [],
+      createdBy: t.created_by ? { _id: t.created_by.id, name: { first: t.created_by.first_name, last: t.created_by.last_name }, role: t.created_by.role } : null,
+      comments: t.comments || [],
+      attachments: t.attachments || [],
+      viewingNow: t.viewing_now || [],
+      createdAt: t.created_at,
+      updatedAt: t.updated_at,
+    }));
   
   res.json(tasks);
 }
 
 export async function createTask(req: Request, res: Response) {
-  const { title, description, assignees } = req.body;
+  const { title, description, assignees, visible_to } = req.body;
+  const allRoles = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance'];
   const { data, error } = await supabase
     .from('tasks')
     .insert({
@@ -35,6 +42,7 @@ export async function createTask(req: Request, res: Response) {
       description,
       status: 'Todo',
       assignees: assignees || [],
+      visible_to: visible_to?.length ? visible_to : allRoles,
       created_by: req.user!.userId,
       comments: [],
       attachments: [],

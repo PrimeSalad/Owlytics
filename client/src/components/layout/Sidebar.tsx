@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, ClipboardList,
   FileText, QrCode, LogOut, ChevronLeft, GraduationCap, ShieldCheck, CheckSquare, Settings, Info,
@@ -25,7 +25,13 @@ interface SidebarProps { collapsed: boolean; onToggle: () => void; }
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
   const visible = NAV_ITEMS.filter((item) => user && item.roles.includes(user.role));
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <aside className={cn(
@@ -115,7 +121,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </NavLink>
 
         <button
-          onClick={logout}
+          onClick={handleLogout}
           title={collapsed ? 'Sign out' : undefined}
           className={cn(
             'group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[12px] font-medium',

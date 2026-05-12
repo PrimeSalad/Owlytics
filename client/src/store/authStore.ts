@@ -39,7 +39,6 @@ export const useAuthStore = create<AuthState>()(
         await supabase.auth.signOut();
         disconnectSocket();
         set({ user: null });
-        window.location.href = '/login';
       },
 
       fetchMe: async () => {

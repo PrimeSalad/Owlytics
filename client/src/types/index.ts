@@ -87,10 +87,11 @@ export interface Task {
   description?: string;
   status: 'Todo' | 'InProgress' | 'Done';
   assignees: Pick<User, '_id' | 'name' | 'role'>[];
+  visible_to: UserRole[]; // roles that can see this task (President/Secretary always see all)
   createdBy: Pick<User, '_id' | 'name' | 'role'>;
   comments: TaskComment[];
   attachments: { url: string; name: string; uploadedBy: string; uploadedAt: string }[];
-  viewingNow: string[]; // user IDs currently viewing
+  viewingNow: string[];
   createdAt: string;
   updatedAt: string;
 }

@@ -21,7 +21,8 @@ export default function App() {
 
   useEffect(() => {
     fetchMe();
-  }, [fetchMe]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <BrowserRouter>
