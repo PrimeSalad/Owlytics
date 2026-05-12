@@ -56,8 +56,8 @@ export function SecretaryDashboard() {
         <section className="grid gap-6 lg:grid-cols-12">
 
           {/* Bar chart — 8 cols */}
-          <div className="lg:col-span-8">
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="lg:col-span-8 flex flex-col">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden h-full">
               <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
                 <div>
                   <h3 className="font-display text-[15px] font-semibold text-slate-900">Students by Year Level</h3>
@@ -92,7 +92,7 @@ export function SecretaryDashboard() {
           </div>
 
           {/* Recent events — 4 cols */}
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-4 flex flex-col">
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden h-full">
               <div className="border-b border-slate-100 px-5 py-4">
                 <h3 className="font-display text-[14px] font-semibold text-slate-900">Recent Events</h3>
@@ -104,7 +104,7 @@ export function SecretaryDashboard() {
                 <ul className="divide-y divide-slate-100">
                   {events.slice(0, 8).map((e) => (
                     <li key={e._id} className="px-5 py-3.5 hover:bg-slate-50/70 transition-colors">
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex justify-between gap-2">
                         <div className="min-w-0">
                           <p className="truncate text-[13px] font-semibold text-slate-800">{e.title}</p>
                           <p className="mt-0.5 text-[11px] text-slate-400">
@@ -130,12 +130,12 @@ export function SecretaryDashboard() {
         <section className="grid gap-6 lg:grid-cols-12">
 
           {/* My To Do — 8 cols */}
-          <div className="lg:col-span-8">
+          <div className="lg:col-span-8 flex flex-col">
             <MyTodoCard />
           </div>
 
           {/* Quick Exports — 4 cols */}
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-4 flex flex-col">
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 h-full">
               <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Quick Exports</p>
               <div className="grid grid-cols-1 gap-3">
@@ -159,3 +159,5 @@ export function SecretaryDashboard() {
     </PageWrapper>
   );
 }
+
+

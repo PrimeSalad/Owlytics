@@ -6,7 +6,7 @@ import { PageWrapper } from '@/components/layout';
 import { Button, Card, CardBody, Input, Badge } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { cn, roleLabel } from '@/lib/utils';
 
 const AVATAR_COLORS = [
   { name: 'Brand', from: 'from-brand-400', to: 'to-brand-600' },
@@ -70,7 +70,7 @@ export function SettingsPage() {
                 <p className="mt-1 text-sm text-slate-500">Customize your profile appearance and information</p>
               </div>
               <Badge variant="default" className="bg-brand-50 text-brand-700 font-bold">
-                {user?.role}
+                {roleLabel(user?.role ?? '')}
               </Badge>
             </div>
 

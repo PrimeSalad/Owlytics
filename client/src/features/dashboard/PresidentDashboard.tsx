@@ -102,8 +102,8 @@ export function PresidentDashboard() {
         <div className="grid gap-5 lg:grid-cols-12">
 
           {/* Monthly events area chart — 8 cols */}
-          <div className="lg:col-span-8">
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="lg:col-span-8 flex flex-col">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden h-full">
               <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
                 <div>
                   <h3 className="font-display text-[15px] font-semibold text-slate-900">Events per Month</h3>
@@ -152,7 +152,7 @@ export function PresidentDashboard() {
           </div>
 
           {/* Event status pie chart — 4 cols */}
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-4 flex flex-col">
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden h-full flex flex-col">
               <div className="border-b border-slate-100 px-5 py-4">
                 <h3 className="font-display text-[15px] font-semibold text-slate-900">Events by Status</h3>
@@ -206,8 +206,8 @@ export function PresidentDashboard() {
         <div className="grid gap-5 lg:grid-cols-12">
 
           {/* Events list — 4 cols */}
-          <div className="lg:col-span-4">
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="lg:col-span-4 flex flex-col">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden h-full">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <div>
                   <h3 className="font-display text-[14px] font-semibold text-slate-900">Events</h3>
@@ -251,7 +251,7 @@ export function PresidentDashboard() {
           </div>
 
           {/* Emergency alerts — 3 cols */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 flex flex-col">
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden h-full flex flex-col">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <div>
@@ -280,7 +280,7 @@ export function PresidentDashboard() {
                   <ul className="divide-y divide-slate-100">
                     {unresolved.map((r) => (
                       <li key={r._id} className="px-5 py-4 hover:bg-slate-50/70 transition-colors">
-                        <div className="mb-1 flex items-start justify-between gap-2">
+                        <div className="mb-1 flex justify-between gap-2">
                           <p className="text-[13px] font-semibold text-slate-900 line-clamp-1">{r.title}</p>
                           <button
                             onClick={() => resolveMutation.mutate(r._id)}
@@ -306,7 +306,7 @@ export function PresidentDashboard() {
           </div>
 
           {/* Accomplishments — 2 cols */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 flex flex-col">
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden h-full flex flex-col">
               <div className="border-b border-slate-100 px-5 py-4">
                 <h3 className="font-display text-[14px] font-semibold text-slate-900">Accomplishments</h3>
@@ -335,7 +335,7 @@ export function PresidentDashboard() {
             </div>
           </div>
           {/* My To Do — 3 cols */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 flex flex-col">
             <MyTodoCard />
           </div>
         </div>
@@ -347,3 +347,5 @@ export function PresidentDashboard() {
     </PageWrapper>
   );
 }
+
+

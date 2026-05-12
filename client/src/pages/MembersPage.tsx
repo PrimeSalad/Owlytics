@@ -17,7 +17,7 @@ import type { User, UserRole } from '@/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { cn } from '@/lib/utils';
+import { cn, roleLabel } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 
 const roles = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance'] as const;
@@ -150,7 +150,7 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
           >
             <option value="All">All roles</option>
             {roles.map((role) => (
-              <option key={role} value={role}>{role}</option>
+              <option key={role} value={role}>{roleLabel(role)}</option>
             ))}
           </select>
         </div>
@@ -214,7 +214,7 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
                       </td>
                       <td className="px-6 py-4 font-mono text-xs text-slate-500">{u.studentId}</td>
                       <td className="px-6 py-4">
-                        <Badge variant={roleBadge[u.role]}>{u.role}</Badge>
+                        <Badge variant={roleBadge[u.role]}>{roleLabel(u.role)}</Badge>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -379,7 +379,7 @@ function CreateMemberModal({
           >
             <option value="Officer">Officer</option>
             <option value="Committee">Committee</option>
-            <option value="Attendance">Attendance</option>
+            <option value="Attendance">Attendance Committee</option>
             <option value="Secretary">Secretary</option>
             <option value="President">President</option>
           </select>
@@ -436,7 +436,7 @@ function EditMemberModal({
             className="h-10 w-full rounded-lg border border-surface-border bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
           >
             {roles.map((role) => (
-              <option key={role} value={role}>{role}</option>
+              <option key={role} value={role}>{roleLabel(role)}</option>
             ))}
           </select>
           {errors.role && <p className="mt-1 text-xs text-danger">{errors.role.message}</p>}

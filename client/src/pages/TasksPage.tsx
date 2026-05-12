@@ -13,7 +13,7 @@ import { PageWrapper } from '@/components/layout';
 import { Badge, Button, Card, CardBody, Input, Modal, Spinner } from '@/components/ui';
 import { api } from '@/lib/api';
 import type { Task, UserRole, Sprint, User } from '@/types';
-import { cn } from '@/lib/utils';
+import { cn, roleLabel } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 
 const COLUMNS = [
@@ -57,7 +57,7 @@ function DraggableCard({ task, canCreate, onClick }: { task: Task; canCreate: bo
                 <div className="flex flex-wrap gap-1">
                   {task.visible_to.map((role) => (
                     <span key={role} className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold', ROLE_COLORS[role])}>
-                      <Eye className="h-2.5 w-2.5" />{role}
+                      <Eye className="h-2.5 w-2.5" />{roleLabel(role)}
                     </span>
                   ))}
                 </div>
@@ -621,7 +621,7 @@ function CreateTaskModal({ sprintId, role, members, onClose, onSuccess }: {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-slate-800 truncate">{m.name.first} {m.name.last}</p>
-                      <p className="text-[10px] text-slate-400">{m.role}</p>
+                      <p className="text-[10px] text-slate-400">{roleLabel(m.role)}</p>
                     </div>
                     {selected && <span className="text-xs font-bold text-brand-600">Assigned</span>}
                   </button>
@@ -740,7 +740,7 @@ function TaskDetailModal({ task, members, canAssign, creatorRole, onClose, onUpd
                         {a.name.first[0]}{a.name.last[0]}
                       </div>
                       {a.name.first} {a.name.last}
-                      <span className="text-[10px] text-slate-400">· {a.role}</span>
+                      <span className="text-[10px] text-slate-400">· {roleLabel(a.role)}</span>
                     </div>
                   ))}
                 </div>
@@ -756,7 +756,7 @@ function TaskDetailModal({ task, members, canAssign, creatorRole, onClose, onUpd
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-slate-800 truncate">{m.name.first} {m.name.last}</p>
-                      <p className="text-[10px] text-slate-400">{m.role}</p>
+                      <p className="text-[10px] text-slate-400">{roleLabel(m.role)}</p>
                     </div>
                     {selected && <span className="text-xs font-bold text-brand-600">Assigned</span>}
                   </button>
@@ -785,7 +785,7 @@ function TaskDetailModal({ task, members, canAssign, creatorRole, onClose, onUpd
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-slate-800">{c.userId.name?.first} {c.userId.name?.last}</span>
-                    <Badge variant="default" className="bg-brand-50 text-brand-700 text-[10px] font-bold">{c.userId.role}</Badge>
+                    <Badge variant="default" className="bg-brand-50 text-brand-700 text-[10px] font-bold">{roleLabel(c.userId.role)}</Badge>
                     <span className="text-xs text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
                   </div>
                   <p className="text-sm text-slate-700">{c.content}</p>

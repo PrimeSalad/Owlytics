@@ -1,7 +1,7 @@
 import { Users, Zap, Shield, CheckCircle } from 'lucide-react';
 import { PageWrapper } from '@/components/layout';
 import { Card, CardBody, Badge } from '@/components/ui';
-import { cn } from '@/lib/utils';
+import { cn, roleLabel } from '@/lib/utils';
 import mascotImg from '@/assets/mascot.png';
 
 export function AboutPage() {
@@ -108,7 +108,7 @@ export function AboutPage() {
                   <div className="mt-3 flex flex-wrap justify-center gap-1.5">
                     {dev.roles.map((role, i) => (
                       <span key={i} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-                        {role}
+                        {roleLabel(role)}
                       </span>
                     ))}
                   </div>

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, Check, Menu, X } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { cn, roleLabel } from '@/lib/utils';
 
 interface NavbarProps { onMenuClick: () => void; title?: string; }
 interface Notification {
@@ -143,7 +143,7 @@ export function Navbar({ onMenuClick, title }: NavbarProps) {
                 'mt-1 inline-block rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider leading-none',
                 rolePill[user.role] ?? 'bg-slate-100 text-slate-600',
               )}>
-                {user.role}
+                {roleLabel(user.role)}
               </span>
             </div>
           </div>

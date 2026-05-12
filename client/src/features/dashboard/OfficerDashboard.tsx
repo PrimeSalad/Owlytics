@@ -43,12 +43,12 @@ export function OfficerDashboard() {
         <div className="grid gap-5 lg:grid-cols-12">
 
           {/* My To Do — 8 cols */}
-          <div className="lg:col-span-8">
+          <div className="lg:col-span-8 flex flex-col">
             <MyTodoCard />
           </div>
 
           {/* Task breakdown — 4 cols */}
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-4 flex flex-col">
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden h-full">
               <div className="border-b border-slate-100 px-5 py-4">
                 <h3 className="font-display text-[14px] font-semibold text-slate-900">Task Breakdown</h3>
@@ -88,3 +88,5 @@ export function OfficerDashboard() {
     </PageWrapper>
   );
 }
+
+
