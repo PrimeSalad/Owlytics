@@ -35,7 +35,7 @@ export async function createTask(req: Request, res: Response) {
       description,
       status: 'Todo',
       assignees: assignees || [],
-      created_by: req.user!.id,
+      created_by: req.user!.userId,
       comments: [],
       attachments: [],
       viewing_now: [],
@@ -66,7 +66,7 @@ export async function addComment(req: Request, res: Response) {
   
   const newComment = {
     _id: Date.now().toString(),
-    userId: { _id: req.user!.id, name: { first: req.user!.first_name, last: req.user!.last_name }, role: req.user!.role },
+    userId: { _id: req.user!.userId, role: req.user!.role },
     content,
     mentions: mentions || [],
     parentId: parentId || null,

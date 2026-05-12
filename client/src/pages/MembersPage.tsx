@@ -5,6 +5,7 @@ import {
   LockKeyhole,
   Search,
   ShieldCheck,
+  Trash2,
   UserPlus,
   Users as UsersIcon,
 } from 'lucide-react';
@@ -55,7 +56,7 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
   const { user } = useAuthStore();
   const canManageAccess = user?.role === 'President';
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading, error } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
       const { data } = await api.get<User[]>('/users');
@@ -113,6 +114,15 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/users/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success('Account deleted');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error ?? 'Failed to delete account'),
+  });
+
   const content = (
     <div className="space-y-5">
       <div className="grid gap-3 md:grid-cols-3">
@@ -158,6 +168,11 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
         <CardBody className="p-0">
           {isLoading ? (
             <div className="flex justify-center py-16"><Spinner size="lg" /></div>
+          ) : error ? (
+            <div className="px-6 py-20 text-center">
+              <p className="text-sm font-semibold text-danger-700">Failed to load accounts</p>
+              <p className="mt-1 text-xs text-slate-400">{(error as any)?.response?.data?.error ?? (error as any)?.message ?? 'Unknown error'}</p>
+            </div>
           ) : filteredUsers.length === 0 ? (
             <div className="px-6 py-20 text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted">
@@ -219,6 +234,18 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
                               aria-label={`Edit ${u.name.first} ${u.name.last}`}
                             >
                               <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`Delete ${u.name.first} ${u.name.last}'s account? This cannot be undone.`)) {
+                                  deleteMutation.mutate(u._id);
+                                }
+                              }}
+                              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-danger-50 hover:text-danger-700 focus:outline-none focus:ring-2 focus:ring-danger-500/30"
+                              aria-label={`Delete ${u.name.first} ${u.name.last}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         ) : (
