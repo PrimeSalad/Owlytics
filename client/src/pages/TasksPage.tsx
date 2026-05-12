@@ -115,7 +115,7 @@ function DroppableColumn({ col, tasks, canCreate, onTaskClick }: {
 }
 
 
-import mascot from '@/assets/mascot.png';
+import mascot from '@/assets/mascot2.png';
 
 // ── Main Page ─────────────────────────────────────────────────
 export function TasksPage() {
@@ -211,14 +211,15 @@ export function TasksPage() {
         <div className="space-y-6">
 
           {/* Hero banner */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0d1f17] to-[#1a3a28] px-8 py-7">
-            <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex-1">
-                <p className="text-xs font-bold uppercase tracking-widest text-brand-400 mb-1">Sprint Board</p>
-                <h2 className="text-2xl font-bold text-white leading-tight">
-                  Hey {user?.name.first}, ready<br />to get things done?
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0d1f17] to-[#1a3a28] px-6 py-6">
+            <div className="relative z-10 flex items-end justify-between gap-4 sm:items-center">
+              {/* Left: text */}
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-brand-400 mb-1">Sprint Board</p>
+                <h2 className="text-lg font-bold text-white leading-snug sm:text-xl sm:whitespace-nowrap">
+                  Hey {user?.name.first}, ready to get things done?
                 </h2>
-                <p className="mt-2 text-sm text-white/50">
+                <p className="mt-1.5 text-xs text-white/50 leading-relaxed">
                   {sprints.length === 0
                     ? 'No sprints yet. Create one to start organizing tasks.'
                     : `${sprints.filter(s => s.status === 'Active').length} active · ${sprints.filter(s => s.status === 'Planning').length} planning · ${sprints.filter(s => s.status === 'Completed').length} completed`}
@@ -233,20 +234,20 @@ export function TasksPage() {
                 )}
               </div>
 
-              {/* Mascot + speech bubble */}
-              <div className="relative flex shrink-0 items-center gap-3">
-                {/* Speech bubble — left of mascot */}
-                <div className="relative w-[220px] rounded-2xl rounded-br-sm bg-white/10 px-5 py-3 backdrop-blur-sm border border-white/10 shadow-lg">
-                  <p key={msgIndex} className="text-xs font-medium leading-relaxed text-white/90 text-center animate-fade-up">
+              {/* Right: mascot + bubble */}
+              <div className="relative flex shrink-0 flex-col items-center gap-2 sm:flex-row sm:items-center">
+                {/* bubble — above on mobile, left on desktop */}
+                <div className="relative w-[150px] sm:w-[280px] rounded-2xl rounded-br-sm bg-white/10 px-3 sm:px-5 py-2 sm:py-3 backdrop-blur-sm border border-white/10 shadow-lg sm:rounded-br-sm sm:rounded-bl-none">
+                  <p key={msgIndex} className="text-[11px] sm:text-sm font-medium leading-relaxed text-white/90 text-center animate-fade-up">
                     {mascotLines[msgIndex]}
                   </p>
-                  {/* bubble tail pointing right */}
-                  <div className="absolute right-[-8px] top-1/2 -translate-y-1/2 h-0 w-0 border-y-[7px] border-l-[8px] border-y-transparent border-l-white/10" />
+                  {/* tail: down on mobile, right on desktop */}
+                  <div className="absolute bottom-[-7px] left-1/2 -translate-x-1/2 h-0 w-0 border-x-[7px] border-t-[7px] border-x-transparent border-t-white/10 sm:hidden" />
+                  <div className="hidden sm:block absolute right-[-8px] top-1/2 -translate-y-1/2 h-0 w-0 border-y-[7px] border-l-[8px] border-y-transparent border-l-white/10" />
                 </div>
-                <img src={mascot} alt="" className="h-28 w-28 object-contain drop-shadow-2xl select-none pointer-events-none" />
+                <img src={mascot} alt="" className="h-24 w-24 sm:h-32 sm:w-32 object-contain drop-shadow-2xl select-none pointer-events-none" />
               </div>
             </div>
-            {/* subtle grid bg */}
             <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
               style={{ backgroundImage: 'repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 40px)' }} />
           </div>
