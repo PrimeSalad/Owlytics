@@ -13,6 +13,7 @@ import { eventRouter } from './routes/event.routes';
 import { attendanceRouter } from './routes/attendance.routes';
 import { reportRouter } from './routes/report.routes';
 import { notificationRouter } from './routes/notification.routes';
+import { taskRouter } from './routes/task.routes';
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use('/api/events', eventRouter);
 app.use('/api/attendance', attendanceRouter);
 app.use('/api/reports', reportRouter);
 app.use('/api/notifications', notificationRouter);
+app.use('/api/tasks', taskRouter);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 

@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, ClipboardList,
-  FileText, QrCode, LogOut, ChevronLeft, GraduationCap, ShieldCheck,
+  FileText, QrCode, LogOut, ChevronLeft, GraduationCap, ShieldCheck, CheckSquare, Settings, Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
@@ -14,6 +14,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard',         to: '/dashboard',  icon: LayoutDashboard, roles: ['President','Secretary','Officer','Committee','Attendance'] },
   { label: 'People',            to: '/people',     icon: ShieldCheck,     roles: ['President','Secretary'] },
   { label: 'Student Directory', to: '/students',   icon: GraduationCap,   roles: ['President','Secretary','Officer'] },
+  { label: 'Tasks',             to: '/tasks',      icon: CheckSquare,     roles: ['President','Secretary','Officer'] },
   { label: 'Events',            to: '/events',     icon: CalendarDays,    roles: ['President','Secretary','Officer','Committee'] },
   { label: 'Attendance',        to: '/attendance', icon: ClipboardList,   roles: ['President','Secretary','Attendance'] },
   { label: 'Scanner',           to: '/scanner',    icon: QrCode,          roles: ['Attendance'] },
@@ -81,19 +82,38 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         ))}
       </nav>
 
-      {/* User + logout */}
+      {/* Settings + About + Logout */}
       <div className="shrink-0 border-t border-white/[0.06] p-2 space-y-0.5">
-        {!collapsed && user && (
-          <div className="flex items-center gap-2.5 rounded-xl px-3 py-2.5">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-500/15 text-[11px] font-bold text-brand-400 ring-1 ring-brand-500/20">
-              {user.name.first[0]}{user.name.last[0]}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[12px] font-semibold leading-none text-white/80">{user.name.first} {user.name.last}</p>
-              <p className="mt-0.5 text-[9px] font-medium uppercase tracking-wider text-white/25">{user.role}</p>
-            </div>
-          </div>
-        )}
+        <NavLink
+          to="/settings"
+          title={collapsed ? 'Settings' : undefined}
+          className={({ isActive }) => cn(
+            'group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[12px] font-medium transition-all duration-200',
+            collapsed && 'justify-center px-0',
+            isActive
+              ? 'bg-brand-500/[0.12] text-brand-400'
+              : 'text-white/40 hover:bg-white/[0.04] hover:text-white/80',
+          )}
+        >
+          <Settings className="h-4 w-4 shrink-0" />
+          {!collapsed && <span>Settings</span>}
+        </NavLink>
+
+        <NavLink
+          to="/about"
+          title={collapsed ? 'About' : undefined}
+          className={({ isActive }) => cn(
+            'group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[12px] font-medium transition-all duration-200',
+            collapsed && 'justify-center px-0',
+            isActive
+              ? 'bg-brand-500/[0.12] text-brand-400'
+              : 'text-white/40 hover:bg-white/[0.04] hover:text-white/80',
+          )}
+        >
+          <Info className="h-4 w-4 shrink-0" />
+          {!collapsed && <span>About</span>}
+        </NavLink>
+
         <button
           onClick={logout}
           title={collapsed ? 'Sign out' : undefined}

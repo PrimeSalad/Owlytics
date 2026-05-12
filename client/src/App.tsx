@@ -11,6 +11,9 @@ import { ScannerPage } from '@/pages/ScannerPage';
 import { ReportsPage } from '@/pages/ReportsPage';
 import { MembersPage } from '@/pages/MembersPage';
 import { StudentsPage } from '@/pages/StudentsPage';
+import { TasksPage } from '@/pages/TasksPage';
+import { SettingsPage } from '@/pages/SettingsPage';
+import { AboutPage } from '@/pages/AboutPage';
 
 
 export default function App() {
@@ -33,6 +36,8 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/events" element={<EventsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/about" element={<AboutPage />} />
 
             {/* People — account access management */}
             <Route element={<ProtectedRoute roles={['President', 'Secretary']} />}>
@@ -44,6 +49,7 @@ export default function App() {
             <Route element={<ProtectedRoute roles={['President', 'Secretary', 'Officer']} />}>
               <Route path="/students" element={<StudentsPage />} />
               <Route path="/directory" element={<Navigate to="/students" replace />} />
+              <Route path="/tasks" element={<TasksPage />} />
             </Route>
 
             {/* Secretary + President */}

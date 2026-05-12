@@ -81,6 +81,29 @@ export interface Report {
   createdAt: string;
 }
 
+export interface Task {
+  _id: string;
+  title: string;
+  description?: string;
+  status: 'Todo' | 'InProgress' | 'Done';
+  assignees: Pick<User, '_id' | 'name' | 'role'>[];
+  createdBy: Pick<User, '_id' | 'name' | 'role'>;
+  comments: TaskComment[];
+  attachments: { url: string; name: string; uploadedBy: string; uploadedAt: string }[];
+  viewingNow: string[]; // user IDs currently viewing
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskComment {
+  _id: string;
+  userId: Pick<User, '_id' | 'name' | 'role'>;
+  content: string;
+  mentions: string[]; // role names or user IDs
+  parentId?: string; // for threaded replies
+  createdAt: string;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   total: number;
