@@ -41,8 +41,9 @@ export default function LogsPage() {
   const filteredLogs = logs.filter(log => {
     const term = searchTerm.toLowerCase();
     const actorName = log.actor ? `${log.actor.first_name} ${log.actor.last_name}`.toLowerCase() : 'system';
+    const details = log.details || '';
     return (
-      log.details?.toLowerCase().includes(term) ||
+      details.toLowerCase().includes(term) ||
       log.action_type.toLowerCase().includes(term) ||
       log.resource.toLowerCase().includes(term) ||
       actorName.includes(term)
@@ -73,7 +74,6 @@ export default function LogsPage() {
   return (
     <PageWrapper
       title="System Logs"
-      icon={Activity}
     >
       <div className="text-sm text-white/40 mb-6">
         Comprehensive audit trail of system activities
