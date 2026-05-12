@@ -7,6 +7,7 @@ import LoginPage from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { EventsPage } from '@/pages/EventsPage';
 import { AttendancePage } from '@/pages/AttendancePage';
+import { AttendanceSummaryPage } from '@/pages/AttendanceSummaryPage';
 import { ScannerPage } from '@/pages/ScannerPage';
 import { ReportsPage } from '@/pages/ReportsPage';
 import { MembersPage } from '@/pages/MembersPage';
@@ -59,6 +60,7 @@ export default function App() {
             {/* Secretary + President */}
             <Route element={<ProtectedRoute roles={['President', 'Secretary', 'Attendance']} />}>
               <Route path="/attendance" element={<AttendancePage />} />
+              <Route path="/attendance/summary" element={<AttendanceSummaryPage />} />
             </Route>
 
             {/* Attendance role only */}
