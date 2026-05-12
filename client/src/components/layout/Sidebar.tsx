@@ -12,14 +12,14 @@ interface NavItem { label: string; to: string; icon: React.ElementType; roles: U
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard',         to: '/dashboard',  icon: LayoutDashboard, roles: ['President','Secretary','Officer','Committee','Attendance'] },
-  { label: 'To Do',             to: '/todo',       icon: ListTodo,        roles: ['President','Secretary','Officer','Committee','Attendance'] },
-  { label: 'People',            to: '/people',     icon: ShieldCheck,     roles: ['President','Secretary'] },
-  { label: 'Student Directory', to: '/students',   icon: GraduationCap,   roles: ['President','Secretary','Officer'] },
-  { label: 'Tasks',             to: '/tasks',      icon: CheckSquare,     roles: ['President','Secretary','Officer'] },
   { label: 'Events',            to: '/events',     icon: CalendarDays,    roles: ['President','Secretary','Officer','Committee'] },
+  { label: 'Tasks',             to: '/tasks',      icon: CheckSquare,     roles: ['President','Secretary','Officer'] },
+  { label: 'To Do',             to: '/todo',       icon: ListTodo,        roles: ['President','Secretary','Officer','Committee','Attendance'] },
   { label: 'Attendance',        to: '/attendance', icon: ClipboardList,   roles: ['President','Secretary','Attendance'] },
   { label: 'Scanner',           to: '/scanner',    icon: QrCode,          roles: ['Attendance'] },
   { label: 'Reports',           to: '/reports',    icon: FileText,        roles: ['President','Secretary','Officer','Committee'] },
+  { label: 'Student Directory', to: '/students',   icon: GraduationCap,   roles: ['President','Secretary','Officer'] },
+  { label: 'People',            to: '/people',     icon: ShieldCheck,     roles: ['President','Secretary'] },
 ];
 
 interface SidebarProps { collapsed: boolean; onToggle: () => void; }
