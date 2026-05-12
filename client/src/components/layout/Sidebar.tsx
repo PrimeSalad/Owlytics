@@ -1,21 +1,14 @@
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard, CalendarDays,
-  ClipboardList, FileText, QrCode, LogOut, ChevronLeft,
-  GraduationCap, ShieldCheck,
+  LayoutDashboard, CalendarDays, ClipboardList,
+  FileText, QrCode, LogOut, ChevronLeft, GraduationCap, ShieldCheck,
 } from 'lucide-react';
-
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import type { UserRole } from '@/types';
 import logo from '@/assets/logo.png';
 
-interface NavItem {
-  label: string;
-  to: string;
-  icon: React.ElementType;
-  roles: UserRole[];
-}
+interface NavItem { label: string; to: string; icon: React.ElementType; roles: UserRole[]; }
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard',         to: '/dashboard',  icon: LayoutDashboard, roles: ['President','Secretary','Officer','Committee','Attendance'] },
@@ -27,95 +20,101 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Reports',           to: '/reports',    icon: FileText,        roles: ['President','Secretary','Officer','Committee'] },
 ];
 
-
-interface SidebarProps {
-  collapsed: boolean;
-  onToggle: () => void;
-}
+interface SidebarProps { collapsed: boolean; onToggle: () => void; }
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { user, logout } = useAuthStore();
   const visible = NAV_ITEMS.filter((item) => user && item.roles.includes(user.role));
 
   return (
-    <aside
-      className={cn(
-        'relative flex h-screen flex-col bg-[#0a1612] text-white transition-all duration-200 shrink-0 border-r border-white/5',
-        collapsed ? 'w-16' : 'w-56'
-      )}
-    >
+    <aside className={cn(
+      'relative flex h-screen shrink-0 flex-col border-r border-white/[0.06] bg-[#080f0c] transition-all duration-300',
+      collapsed ? 'w-[60px]' : 'w-[220px]',
+    )}>
+
       {/* Logo */}
-      <div className={cn('flex h-14 items-center px-4 border-b border-white/5', collapsed && 'justify-center')}>
-        {collapsed ? (
-          <div className="h-7 w-7 flex items-center justify-center">
-            <img src={logo} alt="Owlytics" className="h-5 w-5 object-contain brightness-0 invert" />
+      <div className={cn('flex h-[60px] shrink-0 items-center border-b border-white/[0.06] px-4', collapsed && 'justify-center px-0')}>
+        <div className={cn('flex items-center gap-2.5', collapsed && 'justify-center')}>
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-500/10 ring-1 ring-brand-500/20">
+            <img src={logo} alt="" className="h-4 w-4 object-contain brightness-0 invert" />
           </div>
-        ) : (
-          <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 flex items-center justify-center">
-              <img src={logo} alt="Owlytics" className="h-5 w-5 object-contain brightness-0 invert" />
+          {!collapsed && (
+            <div>
+              <p className="font-display text-[14px] font-semibold leading-none text-white">Owlytics</p>
+              <p className="mt-0.5 text-[9px] font-medium uppercase tracking-[0.2em] text-white/25">Command Center</p>
             </div>
-            <span className="font-display text-[15px] font-semibold tracking-tight">Owlytics</span>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-2 px-2">
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3">
+        {!collapsed && (
+          <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.25em] text-white/20">Menu</p>
+        )}
         {visible.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-200 mb-1',
-                isActive
-                  ? 'bg-brand-500/10 text-brand-400 font-semibold'
-                  : 'text-white/60 hover:bg-white/5 hover:text-white',
-                collapsed && 'justify-center'
-              )
-            }
             title={collapsed ? item.label : undefined}
+            className={({ isActive }) => cn(
+              'group relative mb-0.5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-200',
+              collapsed && 'justify-center px-0',
+              isActive
+                ? 'bg-brand-500/[0.12] text-brand-400'
+                : 'text-white/40 hover:bg-white/[0.04] hover:text-white/80',
+            )}
           >
-            <item.icon className={cn("h-5 w-5 shrink-0 transition-transform", !collapsed && "group-hover:scale-110")} />
-            {!collapsed && <span>{item.label}</span>}
+            {({ isActive }) => (
+              <>
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-brand-400" />
+                )}
+                <item.icon className={cn(
+                  'h-[18px] w-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110',
+                  isActive ? 'text-brand-400' : 'text-white/30',
+                )} />
+                {!collapsed && <span className="truncate">{item.label}</span>}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
-      {/* User */}
-      <div className="border-t border-white/5 p-2">
+      {/* User + logout */}
+      <div className="shrink-0 border-t border-white/[0.06] p-2 space-y-0.5">
         {!collapsed && user && (
-          <div className="flex items-center gap-2 px-2.5 py-2 mb-1">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-white text-xs font-medium">
+          <div className="flex items-center gap-2.5 rounded-xl px-3 py-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-500/15 text-[11px] font-bold text-brand-400 ring-1 ring-brand-500/20">
               {user.name.first[0]}{user.name.last[0]}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-white truncate">{user.name.first} {user.name.last}</p>
-              <p className="text-[10px] text-white/30">{user.role}</p>
+              <p className="truncate text-[12px] font-semibold leading-none text-white/80">{user.name.first} {user.name.last}</p>
+              <p className="mt-0.5 text-[9px] font-medium uppercase tracking-wider text-white/25">{user.role}</p>
             </div>
           </div>
         )}
         <button
           onClick={logout}
+          title={collapsed ? 'Sign out' : undefined}
           className={cn(
-            'flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-[13px] text-white/40 hover:bg-white/5 hover:text-white transition-colors',
-            collapsed && 'justify-center'
+            'group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[12px] font-medium',
+            'text-white/25 transition-all duration-200 hover:bg-danger-500/10 hover:text-danger-400',
+            collapsed && 'justify-center px-0',
           )}
-          title={collapsed ? 'Logout' : undefined}
         >
-          <LogOut className="h-[18px] w-[18px] shrink-0" />
-          {!collapsed && <span>Logout</span>}
+          <LogOut className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5" />
+          {!collapsed && <span>Sign out</span>}
         </button>
       </div>
 
-      {/* Toggle */}
+      {/* Collapse toggle */}
       <button
         onClick={onToggle}
-        className="absolute -right-2.5 top-16 flex h-5 w-5 items-center justify-center rounded-full bg-[#0a1612] border border-white/10 text-white/40 hover:text-white hover:border-white/20 transition-colors"
         aria-label={collapsed ? 'Expand' : 'Collapse'}
+        className="absolute -right-3 top-[72px] z-10 flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-[#0d1a14] text-white/30 shadow-md transition-all duration-200 hover:border-brand-500/40 hover:bg-brand-500/10 hover:text-brand-400"
       >
-        <ChevronLeft className={cn('h-3 w-3 transition-transform', collapsed && 'rotate-180')} />
+        <ChevronLeft className={cn('h-3 w-3 transition-transform duration-300', collapsed && 'rotate-180')} />
       </button>
     </aside>
   );

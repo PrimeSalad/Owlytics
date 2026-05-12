@@ -1,12 +1,18 @@
-import { type ElementType, useState } from 'react';
+import { type ElementType, useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import QRCode from 'qrcode';
 import {
+  BookOpen,
   Download,
   Edit2,
   GraduationCap,
+  Hash,
+  Mail,
+  Printer,
   QrCode,
   Search,
   Trash2,
+  User as UserIcon,
   UserPlus,
   Users as UsersIcon,
 } from 'lucide-react';
@@ -45,17 +51,27 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
   const canManageStudents = user?.role === 'President' || user?.role === 'Secretary';
   const [search, setSearch] = useState('');
   const [yearFilter, setYearFilter] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('');
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
+  const [addDefaultSection, setAddDefaultSection] = useState('');
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [qrStudent, setQrStudent] = useState<Student | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const { data: sections = [], refetch: refetchSections } = useQuery({
+    queryKey: ['student-sections'],
+    queryFn: async () => (await api.get<string[]>('/students/sections')).data,
+  });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['students', page, search, yearFilter],
+    queryKey: ['students', page, search, yearFilter, sectionFilter],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
       if (search.trim()) params.set('search', search.trim());
       if (yearFilter) params.set('yearLevel', yearFilter);
+      if (sectionFilter) params.set('section', sectionFilter);
+      params.set('orderBy', 'section');
       const { data } = await api.get(`/students?${params}`);
       return data as { students: Student[]; total: number; page: number; limit: number };
     },
@@ -70,6 +86,100 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
     onError: (err: any) => toast.error(err.response?.data?.error ?? 'Failed to remove student'),
   });
 
+  const handlePrintFiltered = async () => {
+    try {
+      setIsPrinting(true);
+      const params = new URLSearchParams({ limit: '1000' });
+      if (search.trim()) params.set('search', search.trim());
+      if (yearFilter) params.set('yearLevel', yearFilter);
+      
+      const { data } = await api.get(`/students?${params}`);
+      const allFiltered: Student[] = data.students;
+
+      if (allFiltered.length === 0) {
+        toast.error('No students to print');
+        return;
+      }
+
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast.error('Please allow popups to print');
+        return;
+      }
+
+      // Generate QRs
+      const qrs = await Promise.all(
+        allFiltered.map(async (student) => {
+          const qrData = `SMS|${student.studentId}|${student.name.first} ${student.name.last}|${student.section}`;
+          const url = await QRCode.toDataURL(qrData, {
+            width: 256,
+            margin: 2,
+            color: { dark: '#000000', light: '#ffffff' },
+            errorCorrectionLevel: 'H',
+          });
+          return { ...student, qrUrl: url };
+        })
+      );
+
+      let html = `
+        <html>
+          <head>
+            <title>QR Codes</title>
+            <style>
+              body { font-family: sans-serif; margin: 0; padding: 20px; }
+              .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+              .card { border: 1px solid #e2e8f0; padding: 15px; text-align: center; border-radius: 8px; page-break-inside: avoid; }
+              img { width: 150px; height: 150px; }
+              h3 { margin: 10px 0 5px; font-size: 16px; font-weight: bold; }
+              p { margin: 0; font-size: 12px; color: #64748b; }
+              .badge { display: inline-block; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 11px; margin-top: 5px; font-weight: bold; }
+              @media print {
+                body { padding: 0; }
+                .grid { gap: 10px; }
+              }
+            </style>
+          </head>
+          <body>
+            <h2>Student QR Codes ${search ? `(Search: ${search})` : ''} ${yearFilter ? `(Year ${yearFilter})` : ''}</h2>
+            <p style="margin-bottom: 20px;">Total: ${allFiltered.length} students</p>
+            <div class="grid">
+      `;
+
+      qrs.forEach((s) => {
+        html += `
+          <div class="card">
+            <img src="${s.qrUrl}" />
+            <h3>${s.name.first} ${s.name.last}</h3>
+            <p>${s.studentId}</p>
+            <div class="badge">${s.section}</div>
+          </div>
+        `;
+      });
+
+      html += `
+            </div>
+            <script>
+              window.onload = () => {
+                setTimeout(() => {
+                  window.print();
+                  window.close();
+                }, 500);
+              };
+            </script>
+          </body>
+        </html>
+      `;
+
+      printWindow.document.write(html);
+      printWindow.document.close();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to generate print view');
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   const students = data?.students ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -83,39 +193,48 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex w-full flex-col gap-2 sm:flex-row lg:max-w-2xl">
+        <div className="flex w-full flex-col gap-2 sm:flex-row lg:max-w-3xl">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search name or student ID"
               className="h-10 w-full rounded-lg border border-surface-border bg-white pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
             />
           </div>
+
+          {/* Section filter */}
+          <div className="flex items-center gap-1.5">
+            <select
+              value={sectionFilter}
+              onChange={(e) => { setSectionFilter(e.target.value); setPage(1); }}
+              className="h-10 rounded-lg border border-surface-border bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+            >
+              <option value="">All sections</option>
+              {sections.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
           <select
             value={yearFilter}
-            onChange={(e) => {
-              setYearFilter(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}
             className="h-10 rounded-lg border border-surface-border bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-            aria-label="Filter students by year level"
           >
             <option value="">All years</option>
-            {[1, 2, 3, 4].map((year) => (
-              <option key={year} value={year}>{YEAR_LABELS[year]}</option>
-            ))}
+            {[1, 2, 3, 4].map((y) => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
           </select>
         </div>
 
         {canManageStudents ? (
-          <Button onClick={() => setAddOpen(true)} className="w-full sm:w-auto">
-            <UserPlus className="h-4 w-4" /> Add Student
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button onClick={handlePrintFiltered} variant="secondary" loading={isPrinting} className="w-full sm:w-auto">
+              <Printer className="mr-2 h-4 w-4" /> Print QRs
+            </Button>
+            <Button onClick={() => setAddOpen(true)} className="w-full sm:w-auto">
+              <UserPlus className="mr-2 h-4 w-4" /> Add Student
+            </Button>
+          </div>
         ) : (
           <Badge variant="default" className="w-fit">Directory view</Badge>
         )}
@@ -246,50 +365,34 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
 
       <StudentFormModal
         open={addOpen}
-        onClose={() => setAddOpen(false)}
+        defaultSection={addDefaultSection}
+        sections={sections}
+        onClose={() => { setAddOpen(false); setAddDefaultSection(''); }}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['students'] });
+          refetchSections();
           setAddOpen(false);
+          setAddDefaultSection('');
         }}
       />
       {editStudent && (
         <StudentFormModal
           open
           student={editStudent}
+          sections={sections}
           onClose={() => setEditStudent(null)}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['students'] });
+            refetchSections();
             setEditStudent(null);
           }}
         />
       )}
       {qrStudent && (
-        <Modal
-          open
+        <StudentQRModal
+          student={qrStudent}
           onClose={() => setQrStudent(null)}
-          title={`QR Code - ${qrStudent.name.first} ${qrStudent.name.last}`}
-          description="Use this QR for attendance scanning."
-          size="sm"
-        >
-          <div className="flex flex-col items-center gap-4 py-4">
-            <div className="rounded-xl border-2 border-surface-border bg-white p-4 shadow-inner">
-              {qrStudent.qrCodeUrl ? (
-                <img src={qrStudent.qrCodeUrl} alt={`QR code for ${qrStudent.name.first} ${qrStudent.name.last}`} className="h-48 w-48 object-contain" />
-              ) : (
-                <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-surface-muted text-slate-300">
-                  <QrCode className="h-12 w-12" />
-                </div>
-              )}
-            </div>
-            <div className="text-center">
-              <p className="text-sm font-bold text-slate-800">{qrStudent.studentId}</p>
-              <p className="text-xs text-slate-400">{qrStudent.section} - {YEAR_LABELS[qrStudent.yearLevel]}</p>
-            </div>
-            <Button variant="secondary" size="sm" className="w-full" onClick={() => window.print()}>
-              <Download className="h-4 w-4" /> Print QR
-            </Button>
-          </div>
-        </Modal>
+        />
       )}
     </div>
   );
@@ -303,6 +406,155 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
     >
       {content}
     </PageWrapper>
+  );
+}
+
+function StudentQRModal({
+  student,
+  onClose,
+}: {
+  student: Student;
+  onClose: () => void;
+}) {
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const generateQR = async () => {
+      try {
+        setLoading(true);
+        // Standardized format: SMS|STUDENT_ID|NAME|SECTION
+        const data = `SMS|${student.studentId}|${student.name.first} ${student.name.last}|${student.section}`;
+        const url = await QRCode.toDataURL(data, {
+          width: 512,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#ffffff',
+          },
+          errorCorrectionLevel: 'H',
+        });
+        setQrDataUrl(url);
+      } catch (err) {
+        console.error('Failed to generate QR:', err);
+        toast.error('Failed to generate QR code');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    generateQR();
+  }, [student]);
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>QR Code - ${student.name.first} ${student.name.last}</title>
+          <style>
+            body { 
+              display: flex; 
+              flex-direction: column; 
+              align-items: center; 
+              justify-content: center; 
+              height: 100vh; 
+              margin: 0; 
+              font-family: sans-serif;
+              text-align: center;
+            }
+            img { width: 300px; height: 300px; margin-bottom: 20px; }
+            h1 { margin: 0; font-size: 24px; }
+            p { margin: 5px 0; color: #666; }
+            .badge { 
+              background: #f1f5f9; 
+              padding: 4px 12px; 
+              border-radius: 99px; 
+              font-size: 12px; 
+              font-weight: bold;
+              margin-top: 10px;
+              display: inline-block;
+            }
+          </style>
+        </head>
+        <body>
+          <img src="${qrDataUrl}" />
+          <h1>${student.name.first} ${student.name.last}</h1>
+          <p>${student.studentId}</p>
+          <div class="badge">${student.section}</div>
+          <script>
+            window.onload = () => {
+              window.print();
+              window.close();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleDownload = () => {
+    const link = document.createElement('a');
+    link.download = `QR_${student.studentId}_${student.name.last}.png`;
+    link.href = qrDataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Student QR Code"
+      description="Scan this for attendance or save for printing."
+      size="sm"
+    >
+      <div className="flex flex-col items-center gap-6 py-6">
+        <div className="relative group">
+          <div className="absolute -inset-1 bg-gradient-to-tr from-brand-500 to-brand-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-500"></div>
+          <div className="relative rounded-2xl border border-surface-border bg-white p-5 shadow-xl">
+            {loading ? (
+              <div className="flex h-48 w-48 items-center justify-center">
+                <Spinner size="lg" />
+              </div>
+            ) : qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt="Student QR Code"
+                className="h-48 w-48 object-contain"
+              />
+            ) : (
+              <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-surface-muted text-slate-300">
+                <QrCode className="h-12 w-12" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="text-center space-y-1">
+          <h4 className="text-lg font-bold text-slate-900 leading-tight">
+            {student.name.first} {student.name.last}
+          </h4>
+          <p className="text-sm font-mono text-slate-500 font-medium">{student.studentId}</p>
+          <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-700 border border-brand-100">
+            {student.section}
+          </div>
+        </div>
+
+        <div className="grid w-full grid-cols-2 gap-3 pt-2">
+          <Button variant="secondary" size="sm" onClick={handleDownload} disabled={!qrDataUrl}>
+            <Download className="mr-2 h-4 w-4" /> Download
+          </Button>
+          <Button variant="primary" size="sm" onClick={handlePrint} disabled={!qrDataUrl}>
+            <Printer className="mr-2 h-4 w-4" /> Print
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -333,18 +585,24 @@ function DirectoryMetric({
 function StudentFormModal({
   open,
   student,
+  defaultSection = '',
+  sections = [],
   onClose,
   onSuccess,
 }: {
   open: boolean;
   student?: Student;
+  defaultSection?: string;
+  sections?: string[];
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const isEdit = Boolean(student);
+  const [addingNewSection, setAddingNewSection] = useState(false);
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
     reset,
   } = useForm<FormData>({
@@ -358,7 +616,7 @@ function StudentFormModal({
           section: student.section,
           yearLevel: student.yearLevel,
         }
-      : { yearLevel: 1 },
+      : { yearLevel: 1, section: defaultSection },
   });
 
   const mutation = useMutation({
@@ -391,33 +649,90 @@ function StudentFormModal({
       description="Student records live here. Account access is created from People."
       size="lg"
     >
-      <form onSubmit={handleSubmit((values) => mutation.mutate(values))} className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input label="First Name" required error={errors.firstName?.message} {...register('firstName')} />
-          <Input label="Last Name" required error={errors.lastName?.message} {...register('lastName')} />
+      <form onSubmit={handleSubmit((values) => mutation.mutate(values))} className="space-y-6 pt-2">
+        <div className="space-y-4">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Personal Information</h4>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input label="First Name" placeholder="Juan" required leftIcon={<UserIcon className="h-4 w-4" />} error={errors.firstName?.message} {...register('firstName')} />
+            <Input label="Last Name" placeholder="Dela Cruz" required leftIcon={<UserIcon className="h-4 w-4" />} error={errors.lastName?.message} {...register('lastName')} />
+          </div>
+          <Input label="Email" type="email" placeholder="juan@university.edu.ph" autoComplete="email" required leftIcon={<Mail className="h-4 w-4" />} error={errors.email?.message} {...register('email')} />
         </div>
-        <Input label="Student ID" required error={errors.studentId?.message} {...register('studentId')} />
-        <Input label="Email" type="email" autoComplete="email" required error={errors.email?.message} {...register('email')} />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input label="Section" placeholder="e.g. BSIT 3-A" required error={errors.section?.message} {...register('section')} />
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-slate-600">
-              Year Level <span className="text-danger">*</span>
-            </label>
-            <select
-              {...register('yearLevel')}
-              className="h-10 w-full rounded-lg border border-surface-border bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-            >
-              {[1, 2, 3, 4].map((year) => (
-                <option key={year} value={year}>{YEAR_LABELS[year]}</option>
-              ))}
-            </select>
-            {errors.yearLevel && <p className="mt-1 text-xs text-danger">{errors.yearLevel.message}</p>}
+
+        <div className="space-y-4">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Academic Details</h4>
+          <Input label="Student ID" placeholder="2021-0001" required leftIcon={<Hash className="h-4 w-4" />} hint="Used for QR code generation and matching." error={errors.studentId?.message} {...register('studentId')} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-600">
+                Section <span className="text-danger-500">*</span>
+              </label>
+              {addingNewSection ? (
+                <div className="flex gap-2">
+                  <input
+                    autoFocus
+                    placeholder="e.g. BSIT 3-A"
+                    className="h-[42px] flex-1 rounded-lg border border-brand-400 bg-white px-3 text-sm text-slate-800 outline-none ring-2 ring-brand-500/20"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const val = (e.target as HTMLInputElement).value.trim();
+                        if (val) { setValue('section', val); }
+                        setAddingNewSection(false);
+                      }
+                      if (e.key === 'Escape') setAddingNewSection(false);
+                    }}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val) setValue('section', val);
+                      setAddingNewSection(false);
+                    }}
+                  />
+                  <button type="button" onClick={() => setAddingNewSection(false)}
+                    className="h-[42px] rounded-lg border border-slate-200 px-3 text-[12px] text-slate-500 hover:bg-slate-50">
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <select
+                  {...register('section')}
+                  onChange={(e) => {
+                    if (e.target.value === '__new__') {
+                      setValue('section', '');
+                      setAddingNewSection(true);
+                    } else {
+                      setValue('section', e.target.value);
+                    }
+                  }}
+                  className="h-[42px] w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                >
+                  <option value="">Select a section</option>
+                  {sections.map((s) => <option key={s} value={s}>{s}</option>)}
+                  <option value="__new__">+ Add new section…</option>
+                </select>
+              )}
+              {errors.section && <p className="mt-1 text-xs text-danger-500">{errors.section.message}</p>}
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-600">
+                Year Level <span className="text-danger">*</span>
+              </label>
+              <select
+                {...register('yearLevel')}
+                className="h-[42px] w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition-all duration-200 hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              >
+                {[1, 2, 3, 4].map((year) => (
+                  <option key={year} value={year}>{YEAR_LABELS[year]}</option>
+                ))}
+              </select>
+              {errors.yearLevel && <p className="mt-1 text-xs text-danger">{errors.yearLevel.message}</p>}
+            </div>
           </div>
         </div>
-        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+        
+        <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end border-t border-slate-100">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={mutation.isPending}>{isEdit ? 'Update Student' : 'Add Student'}</Button>
+          <Button type="submit" loading={mutation.isPending}>{isEdit ? 'Save Changes' : 'Add Student Record'}</Button>
         </div>
       </form>
     </Modal>

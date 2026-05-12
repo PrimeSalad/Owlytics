@@ -17,7 +17,7 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      isLoading: false,
+      isLoading: true,
 
       login: async (email, password) => {
         set({ isLoading: true });
@@ -43,6 +43,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       fetchMe: async () => {
+        set({ isLoading: true });
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) { set({ user: null }); return; }
@@ -50,6 +51,8 @@ export const useAuthStore = create<AuthState>()(
           set({ user: profile });
         } catch {
           set({ user: null });
+        } finally {
+          set({ isLoading: false });
         }
       },
     }),

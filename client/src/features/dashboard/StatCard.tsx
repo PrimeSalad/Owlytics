@@ -7,29 +7,48 @@ interface StatCardProps {
   icon: ElementType;
   trend?: { value: string; up: boolean };
   accent?: 'brand' | 'success' | 'warning' | 'danger';
+  description?: string;
 }
 
-const accentMap = {
-  brand:   'bg-brand-50 text-brand-600 border border-brand-100',
-  success: 'bg-success-50 text-success-600 border border-success-100',
-  warning: 'bg-warning-50 text-warning-600 border border-warning-100',
-  danger:  'bg-danger-50 text-danger-600 border border-danger-100',
+const cfg = {
+  brand:   { border: 'border-l-brand-500',   icon: 'text-brand-500',   bg: 'bg-brand-500'   },
+  success: { border: 'border-l-success-500', icon: 'text-success-500', bg: 'bg-success-500' },
+  warning: { border: 'border-l-warning-500', icon: 'text-warning-500', bg: 'bg-warning-500' },
+  danger:  { border: 'border-l-danger-500',  icon: 'text-danger-500',  bg: 'bg-danger-500'  },
 };
 
-export function StatCard({ label, value, icon: Icon, trend, accent = 'brand' }: StatCardProps) {
+export function StatCard({ label, value, icon: Icon, trend, accent = 'brand', description }: StatCardProps) {
+  const c = cfg[accent];
   return (
-    <div className="rounded-2xl bg-white border border-slate-200/60 shadow-sm p-6 flex items-start justify-between gap-4 transition-all duration-300 hover:shadow-md hover:border-slate-300 group">
-      <div>
-        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
-        <p className="mt-2 font-display text-3xl font-bold text-slate-800 tracking-tight">{value}</p>
-        {trend && (
-          <p className={cn('mt-2 text-[11px] font-bold uppercase tracking-wider', trend.up ? 'text-success-600' : 'text-danger-600')}>
-            {trend.up ? '↑' : '↓'} {trend.value}
-          </p>
-        )}
+    <div className={cn(
+      'relative flex flex-col justify-between overflow-hidden rounded-xl border border-slate-200 bg-white px-5 py-4',
+      'border-l-[3px] shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-px cursor-default',
+      c.border,
+    )}>
+      {/* top row: label + icon */}
+      <div className="flex items-center justify-between">
+        <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">{label}</p>
+        <Icon className={cn('h-4 w-4', c.icon)} />
       </div>
-      <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3', accentMap[accent])}>
-        <Icon className="h-5 w-5" />
+
+      {/* value */}
+      <p className="mt-3 font-display text-[2rem] font-bold leading-none tracking-tight text-slate-900 tabular-nums">
+        {value}
+      </p>
+
+      {/* description / trend */}
+      <div className="mt-2 flex items-center justify-between">
+        {description && (
+          <p className="font-sans text-[11px] text-slate-400">{description}</p>
+        )}
+        {trend && (
+          <span className={cn(
+            'ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold',
+            trend.up ? 'bg-success-50 text-success-600' : 'bg-danger-50 text-danger-600',
+          )}>
+            {trend.up ? '↑' : '↓'} {trend.value}
+          </span>
+        )}
       </div>
     </div>
   );

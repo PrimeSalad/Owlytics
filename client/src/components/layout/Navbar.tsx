@@ -1,10 +1,14 @@
-import { Bell, Menu } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Bell, Check, Menu, X } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-interface NavbarProps {
-  onMenuClick: () => void;
-  title?: string;
+interface NavbarProps { onMenuClick: () => void; title?: string; }
+interface Notification {
+  id: string; type: string; title: string;
+  message: string; is_read: boolean; created_at: string;
 }
 
 const rolePill: Record<string, string> = {
@@ -17,47 +21,127 @@ const rolePill: Record<string, string> = {
 
 export function Navbar({ onMenuClick, title }: NavbarProps) {
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: async () => (await api.get<Notification[]>('/notifications')).data,
+    refetchInterval: 30000,
+  });
+
+  const markRead = useMutation({
+    mutationFn: async (id: string) => api.patch(`/notifications/${id}/read`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
+  const unread = notifications.filter((n) => !n.is_read).length;
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-surface-border bg-white px-4 md:px-6 shadow-sm sticky top-0 z-30">
+    <header className="sticky top-0 z-30 flex h-[60px] shrink-0 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-sm md:px-6">
+
       {/* Left */}
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors md:hidden focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 md:hidden"
           aria-label="Toggle menu"
         >
           <Menu className="h-5 w-5" />
         </button>
         {title && (
-          <h1 className="font-display text-lg font-bold text-slate-800 tracking-tight">{title}</h1>
+          <h1 className="font-display text-[16px] font-semibold text-slate-900">{title}</h1>
         )}
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-2">
-        {/* Notifications */}
-        <button className="relative rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/30">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger-500 ring-2 ring-white" />
-        </button>
+      <div className="flex items-center gap-1">
 
-        {/* Divider */}
-        <div className="mx-2 h-6 w-px bg-slate-200" />
+        {/* Bell */}
+        <div className="relative" ref={ref}>
+          <button
+            onClick={() => setOpen(!open)}
+            className="relative rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+          >
+            <Bell className="h-[18px] w-[18px]" />
+            {unread > 0 && (
+              <span className="absolute right-1.5 top-1.5 flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-danger-500 px-0.5 text-[8px] font-bold text-white ring-2 ring-white">
+                {unread > 9 ? '9+' : unread}
+              </span>
+            )}
+          </button>
 
-        {/* Avatar + info */}
+          {open && (
+            <div className="absolute right-0 mt-2 w-[340px] animate-fade-up overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+                <div>
+                  <p className="font-display text-[14px] font-semibold text-slate-900">Notifications</p>
+                  <p className="text-[11px] text-slate-400">{unread} unread</p>
+                </div>
+                <button onClick={() => setOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* List */}
+              <div className="max-h-[380px] overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="py-12 text-center text-[13px] text-slate-300">No notifications yet</div>
+                ) : (
+                  <ul className="divide-y divide-slate-100">
+                    {notifications.map((n) => (
+                      <li key={n.id} className={cn('flex gap-3 px-5 py-4 transition-colors hover:bg-slate-50', !n.is_read && 'bg-brand-50/40')}>
+                        <div className={cn('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', n.is_read ? 'bg-slate-200' : 'bg-brand-500')} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13px] font-semibold text-slate-800">{n.title}</p>
+                          <p className="mt-0.5 text-[12px] leading-relaxed text-slate-500">{n.message}</p>
+                          <p className="mt-1.5 text-[10px] text-slate-400">
+                            {new Date(n.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        {!n.is_read && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); markRead.mutate(n.id); }}
+                            className="shrink-0 self-start rounded-lg p-1 text-slate-300 transition-colors hover:bg-brand-50 hover:text-brand-600"
+                            title="Mark as read"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="mx-1 h-5 w-px bg-slate-200" />
+
+        {/* User */}
         {user && (
-          <div className="flex items-center gap-3 cursor-pointer p-1 pr-2 rounded-full hover:bg-slate-50 transition-colors">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-600 text-sm font-bold border border-brand-100">
+          <div className="flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-1.5 transition-colors hover:bg-slate-50">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-[12px] font-bold text-brand-600 ring-1 ring-brand-100">
               {user.name.first[0]}{user.name.last[0]}
             </div>
             <div className="hidden md:block">
-              <p className="text-[13px] font-bold text-slate-700 leading-none">
+              <p className="text-[13px] font-semibold leading-none text-slate-800">
                 {user.name.first} {user.name.last}
               </p>
               <span className={cn(
                 'mt-1 inline-block rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider leading-none',
-                rolePill[user.role] ?? 'bg-slate-100 text-slate-600'
+                rolePill[user.role] ?? 'bg-slate-100 text-slate-600',
               )}>
                 {user.role}
               </span>

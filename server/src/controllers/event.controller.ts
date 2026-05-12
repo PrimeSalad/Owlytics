@@ -96,11 +96,12 @@ export async function addActivity(req: Request, res: Response) {
 }
 
 export async function updateActivity(req: Request, res: Response) {
-  const { status, name, description } = req.body;
+  const { status, name, description, committeeId } = req.body;
   const update: Record<string, unknown> = {};
   if (status) update.status = status;
   if (name) update.name = name;
   if (description !== undefined) update.description = description;
+  if (committeeId !== undefined) update.committee_id = committeeId || null;
 
   const { error } = await supabase.from('activities').update(update).eq('id', req.params.actId);
   if (error) throw new AppError(400, error.message);

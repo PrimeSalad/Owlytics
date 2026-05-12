@@ -14,4 +14,5 @@ export const updateUserSchema = z.object({
   role: z.enum(roles).optional(),
   isActive: z.boolean().optional(),
   assignedCommitteeId: z.string().nullable().optional(),
+  assignedSection: z.string().nullable().optional(),
 });

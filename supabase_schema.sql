@@ -9,23 +9,63 @@ create extension if not exists "uuid-ossp";
 create extension if not exists "pg_trgm";
 
 -- ── Enums ────────────────────────────────────────────────────
-create type user_role as enum ('President','Secretary','Officer','Committee','Attendance');
-create type event_status as enum ('Planning','Ongoing','Completed','Cancelled');
-create type activity_status as enum ('Pending','InProgress','Done');
-create type attendance_status as enum ('Present','Late','Absent');
-create type report_type as enum ('Update','Emergency','Accomplishment');
-create type session_label as enum ('AM In','AM Out','PM In','PM Out');
-create type notification_type as enum ('Emergency','EventUpdate','AttendanceAlert','System');
-create type file_type as enum ('image','pdf','document');
+do $$
+begin
+  create type user_role as enum ('President','Secretary','Officer','Committee','Attendance');
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type event_status as enum ('Planning','Ongoing','Completed','Cancelled');
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type activity_status as enum ('Pending','InProgress','Done');
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type attendance_status as enum ('Present','Late','Absent');
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type report_type as enum ('Update','Emergency','Accomplishment');
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type session_label as enum ('AM In','AM Out','PM In','PM Out');
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type notification_type as enum ('Emergency','EventUpdate','AttendanceAlert','System');
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type file_type as enum ('image','pdf','document');
+exception when duplicate_object then null;
+end $$;
 
 -- ── profiles (extends Supabase auth.users) ───────────────────
-create table profiles (
+create table if not exists profiles (
   id            uuid primary key references auth.users(id) on delete cascade,
   student_id    text unique not null,
   first_name    text not null,
   last_name     text not null,
   role          user_role not null default 'Committee',
   avatar_url    text,
+  assigned_section text,
   is_active     boolean not null default true,
   last_login    timestamptz,
   created_at    timestamptz not null default now(),
@@ -33,7 +73,7 @@ create table profiles (
 );
 
 -- ── students ─────────────────────────────────────────────────
-create table students (
+create table if not exists students (
   id              uuid primary key default uuid_generate_v4(),
   student_id      text unique not null,
   first_name      text not null,
@@ -49,7 +89,7 @@ create table students (
 );
 
 -- ── events ───────────────────────────────────────────────────
-create table events (
+create table if not exists events (
   id           uuid primary key default uuid_generate_v4(),
   title        text not null,
   description  text,
@@ -64,14 +104,14 @@ create table events (
 );
 
 -- event ↔ officer junction
-create table event_officers (
+create table if not exists event_officers (
   event_id   uuid references events(id) on delete cascade,
   officer_id uuid references profiles(id) on delete cascade,
   primary key (event_id, officer_id)
 );
 
 -- ── activities ───────────────────────────────────────────────
-create table activities (
+create table if not exists activities (
   id           uuid primary key default uuid_generate_v4(),
   event_id     uuid not null references events(id) on delete cascade,
   name         text not null,
@@ -86,7 +126,7 @@ create table activities (
 );
 
 -- ── activity_updates ─────────────────────────────────────────
-create table activity_updates (
+create table if not exists activity_updates (
   id           uuid primary key default uuid_generate_v4(),
   activity_id  uuid not null references activities(id) on delete cascade,
   content      text not null,
@@ -94,14 +134,14 @@ create table activity_updates (
   created_at   timestamptz not null default now()
 );
 
-create table activity_update_attachments (
+create table if not exists activity_update_attachments (
   id        uuid primary key default uuid_generate_v4(),
   update_id uuid not null references activity_updates(id) on delete cascade,
   url       text not null
 );
 
 -- ── attendance_schedules ──────────────────────────────────────
-create table attendance_schedules (
+create table if not exists attendance_schedules (
   id         uuid primary key default uuid_generate_v4(),
   event_id   uuid not null references events(id) on delete cascade,
   label      text not null,
@@ -109,14 +149,14 @@ create table attendance_schedules (
   created_at timestamptz not null default now()
 );
 
-create table attendance_schedule_scanners (
+create table if not exists attendance_schedule_scanners (
   schedule_id uuid references attendance_schedules(id) on delete cascade,
   scanner_id  uuid references profiles(id) on delete cascade,
   primary key (schedule_id, scanner_id)
 );
 
 -- ── attendance_sessions ───────────────────────────────────────
-create table attendance_sessions (
+create table if not exists attendance_sessions (
   id                   uuid primary key default uuid_generate_v4(),
   schedule_id          uuid not null references attendance_schedules(id) on delete cascade,
   label                session_label not null,
@@ -127,7 +167,7 @@ create table attendance_sessions (
 );
 
 -- ── attendance_records ────────────────────────────────────────
-create table attendance_records (
+create table if not exists attendance_records (
   id              uuid primary key default uuid_generate_v4(),
   event_id        uuid not null references events(id),
   schedule_id     uuid not null references attendance_schedules(id),
@@ -144,7 +184,7 @@ create table attendance_records (
 );
 
 -- ── reports ───────────────────────────────────────────────────
-create table reports (
+create table if not exists reports (
   id          uuid primary key default uuid_generate_v4(),
   event_id    uuid not null references events(id),
   activity_id uuid references activities(id),
@@ -159,7 +199,7 @@ create table reports (
   updated_at  timestamptz not null default now()
 );
 
-create table report_attachments (
+create table if not exists report_attachments (
   id        uuid primary key default uuid_generate_v4(),
   report_id uuid not null references reports(id) on delete cascade,
   url       text not null,
@@ -168,7 +208,7 @@ create table report_attachments (
 );
 
 -- ── notifications ─────────────────────────────────────────────
-create table notifications (
+create table if not exists notifications (
   id           uuid primary key default uuid_generate_v4(),
   recipient_id uuid not null references profiles(id) on delete cascade,
   type         notification_type not null,
@@ -180,16 +220,16 @@ create table notifications (
 );
 
 -- ── Indexes ───────────────────────────────────────────────────
-create index idx_profiles_role_active on profiles (role, is_active);
-create index idx_students_year_section on students (year_level, section);
-create index idx_students_search_trgm on students
+create index if not exists idx_profiles_role_active on profiles (role, is_active);
+create index if not exists idx_students_year_section on students (year_level, section);
+create index if not exists idx_students_search_trgm on students
   using gin ((student_id || ' ' || first_name || ' ' || last_name) gin_trgm_ops);
-create index idx_events_status_dates on events (status, start_date, end_date);
-create index idx_attendance_records_event on attendance_records (event_id);
-create index idx_attendance_records_student on attendance_records (student_id);
-create index idx_activities_event on activities (event_id);
-create index idx_reports_event_type on reports (event_id, type);
-create index idx_notifications_recipient_read on notifications (recipient_id, is_read);
+create index if not exists idx_events_status_dates on events (status, start_date, end_date);
+create index if not exists idx_attendance_records_event on attendance_records (event_id);
+create index if not exists idx_attendance_records_student on attendance_records (student_id);
+create index if not exists idx_activities_event on activities (event_id);
+create index if not exists idx_reports_event_type on reports (event_id, type);
+create index if not exists idx_notifications_recipient_read on notifications (recipient_id, is_read);
 
 -- ── RLS: disable for now (enable per-table when deploying) ────
 alter table profiles               enable row level security;
@@ -216,29 +256,44 @@ returns trigger language plpgsql as $$
 begin new.updated_at = now(); return new; end;
 $$;
 
+drop trigger if exists trg_profiles_updated_at on profiles;
 create trigger trg_profiles_updated_at    before update on profiles    for each row execute function update_updated_at();
+
+drop trigger if exists trg_students_updated_at on students;
 create trigger trg_students_updated_at    before update on students    for each row execute function update_updated_at();
+
+drop trigger if exists trg_events_updated_at on events;
 create trigger trg_events_updated_at      before update on events      for each row execute function update_updated_at();
+
+drop trigger if exists trg_activities_updated_at on activities;
 create trigger trg_activities_updated_at  before update on activities  for each row execute function update_updated_at();
+
+drop trigger if exists trg_reports_updated_at on reports;
 create trigger trg_reports_updated_at     before update on reports     for each row execute function update_updated_at();
 
 -- ── Auto-create profile on auth.users insert ─────────────────
-create or replace function handle_new_user()
-returns trigger language plpgsql security definer as $$
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
 declare
-  selected_role user_role := 'Committee';
+  requested_student_id text;
+  selected_role public.user_role := 'Committee'::public.user_role;
 begin
-  if new.raw_user_meta_data ? 'role'
-     and new.raw_user_meta_data->>'role' in ('President','Secretary','Officer','Committee','Attendance') then
-    selected_role := (new.raw_user_meta_data->>'role')::user_role;
+  requested_student_id := nullif(trim(coalesce(new.raw_user_meta_data->>'student_id', '')), '');
+
+  if coalesce(new.raw_user_meta_data->>'role', '') in ('President','Secretary','Officer','Committee','Attendance') then
+    selected_role := (new.raw_user_meta_data->>'role')::public.user_role;
   end if;
 
-  insert into profiles (id, student_id, first_name, last_name, role, is_active)
+  insert into public.profiles (id, student_id, first_name, last_name, role, is_active)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'student_id', new.id::text),
-    coalesce(new.raw_user_meta_data->>'first_name', 'User'),
-    coalesce(new.raw_user_meta_data->>'last_name', ''),
+    coalesce(requested_student_id, new.id::text),
+    coalesce(nullif(trim(coalesce(new.raw_user_meta_data->>'first_name', '')), ''), 'User'),
+    coalesce(nullif(trim(coalesce(new.raw_user_meta_data->>'last_name', '')), ''), ''),
     selected_role,
     true
   )
@@ -250,12 +305,32 @@ begin
     is_active = excluded.is_active,
     updated_at = now();
   return new;
+exception
+  when unique_violation then
+    insert into public.profiles (id, student_id, first_name, last_name, role, is_active)
+    values (
+      new.id,
+      new.id::text,
+      coalesce(nullif(trim(coalesce(new.raw_user_meta_data->>'first_name', '')), ''), 'User'),
+      coalesce(nullif(trim(coalesce(new.raw_user_meta_data->>'last_name', '')), ''), ''),
+      selected_role,
+      true
+    )
+    on conflict (id) do update set
+      student_id = excluded.student_id,
+      first_name = excluded.first_name,
+      last_name = excluded.last_name,
+      role = excluded.role,
+      is_active = excluded.is_active,
+      updated_at = now();
+    return new;
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
-  for each row execute function handle_new_user();
+  for each row execute function public.handle_new_user();
 
 -- Bootstrap note:
 -- Create the first President from Supabase Authentication → Add user, then set raw_user_meta_data:

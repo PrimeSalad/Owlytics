@@ -5,7 +5,6 @@ import {
   LockKeyhole,
   Search,
   ShieldCheck,
-  Trash2,
   UserPlus,
   Users as UsersIcon,
 } from 'lucide-react';
@@ -35,6 +34,7 @@ type CreateForm = z.infer<typeof createSchema>;
 const updateSchema = z.object({
   role: z.enum(roles),
   isActive: z.boolean(),
+  assignedSection: z.string().nullable().optional(),
 });
 type UpdateForm = z.infer<typeof updateSchema>;
 
@@ -110,19 +110,6 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.error ?? 'Failed to update account access');
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/users/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('Account access deactivated');
-    },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.error ?? 'Failed to deactivate account');
     },
   });
 
@@ -232,18 +219,6 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
                               aria-label={`Edit ${u.name.first} ${u.name.last}`}
                             >
                               <Edit2 className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (confirm(`Deactivate ${u.name.first} ${u.name.last}?`)) {
-                                  deleteMutation.mutate(u._id);
-                                }
-                              }}
-                              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-danger-50 hover:text-danger-700 focus:outline-none focus:ring-2 focus:ring-danger-500/30"
-                              aria-label={`Deactivate ${u.name.first} ${u.name.last}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         ) : (
@@ -410,11 +385,14 @@ function EditMemberModal({
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<UpdateForm>({
     resolver: zodResolver(updateSchema),
-    defaultValues: { role: user.role, isActive: user.isActive },
+    defaultValues: { role: user.role, isActive: user.isActive, assignedSection: user.assignedSection || null },
   });
+  
+  const selectedRole = watch('role');
 
   return (
     <Modal
@@ -436,6 +414,17 @@ function EditMemberModal({
           </select>
           {errors.role && <p className="mt-1 text-xs text-danger">{errors.role.message}</p>}
         </div>
+        
+        {selectedRole === 'Attendance' && (
+          <Input
+            label="Assigned Section"
+            placeholder="e.g. BSIT 3-A"
+            hint="The section this Attendance role user is assigned to"
+            error={errors.assignedSection?.message}
+            {...register('assignedSection')}
+          />
+        )}
+        
         <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-surface-border px-3 py-2">
           <input type="checkbox" {...register('isActive')} className="rounded border-surface-border text-brand-600 focus:ring-brand-500" />
           <span className="text-sm font-medium text-slate-700">Account is active</span>

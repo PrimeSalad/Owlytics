@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  listStudents, createStudent, importStudents,
+  listStudents, listSections, createStudent, importStudents,
   getStudent, updateStudent, deleteStudent, getStudentQR,
 } from '../controllers/student.controller';
 import { requireAuth } from '../middleware/requireAuth';
@@ -11,6 +11,7 @@ export const studentRouter = Router();
 
 studentRouter.use(requireAuth);
 
+studentRouter.get('/sections', requireRole('Secretary', 'Officer', 'President'), listSections);
 studentRouter.get('/', requireRole('Secretary', 'Officer', 'President'), listStudents);
 studentRouter.post('/', requireRole('President', 'Secretary'), createStudent);
 studentRouter.post('/import', requireRole('President', 'Secretary'), upload.single('file'), importStudents);
