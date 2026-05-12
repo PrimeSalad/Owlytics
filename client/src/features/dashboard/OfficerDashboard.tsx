@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, Clock, Activity } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { PageWrapper } from '@/components/layout';
 import { PageSpinner } from '@/components/ui';
@@ -19,76 +19,71 @@ export function OfficerDashboard() {
 
   if (isLoading) return <PageSpinner />;
 
-  const myEvents = events.filter((e) => e.assignedOfficers.some((o) => o._id === user?._id));
-  const allTasks = myEvents.flatMap((e) => e.activities);
-  const done     = allTasks.filter((a) => a.status === 'Done').length;
-  const active   = myEvents.filter((e) => e.status === 'Ongoing').length;
+  const myEvents  = events.filter((e) => e.assignedOfficers.some((o) => o._id === user?._id));
+  const allTasks  = myEvents.flatMap((e) => e.activities);
+  const done      = allTasks.filter((a) => a.status === 'Done').length;
+  const inProg    = allTasks.filter((a) => a.status === 'InProgress').length;
+  const active    = myEvents.filter((e) => e.status === 'Ongoing').length;
+  const upcoming  = myEvents.filter((e) => e.status === 'Planning').length;
 
   return (
-    <PageWrapper title="Dashboard">
-      <div className="animate-fade-up space-y-7 pb-12">
+    <PageWrapper title="Dashboard" description="Your assigned events, tasks, and progress at a glance.">
+      <div className="animate-fade-up space-y-6 pb-12">
         <MessageFeed />
 
-        <section>
-          <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Your Overview</p>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatCard label="Assigned Events" value={myEvents.length}  icon={CalendarDays}  accent="brand"   description="Events you manage" />
-            <StatCard label="Active Now"       value={active}           icon={Clock}         accent="warning" description="Currently ongoing" />
-            <StatCard label="Tasks Done"       value={done}             icon={CheckCircle2}  accent="success" description="Completed tasks" />
-            <StatCard label="Total Tasks"      value={allTasks.length}  icon={Activity}      accent="brand"   description="Across all events" />
-          </div>
-        </section>
+        {/* ── KPIs ── */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard label="Assigned Events" value={myEvents.length} icon={CalendarDays}  accent="brand"   description="Events you manage" />
+          <StatCard label="Active Now"       value={active}          icon={Clock}         accent="warning" description="Currently ongoing" />
+          <StatCard label="Upcoming"         value={upcoming}        icon={AlertCircle}   accent="brand"   description="In planning" />
+          <StatCard label="Tasks Done"       value={done}            icon={CheckCircle2}  accent="success" description={`${allTasks.length} total`} />
+        </div>
 
-        <section>
-          <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Assigned Events</p>
-          {myEvents.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm">
-              <p className="text-[13px] text-slate-300">No events assigned to you yet</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {myEvents.map((ev) => {
-                const total     = ev.activities.length;
-                const doneCount = ev.activities.filter((a) => a.status === 'Done').length;
-                const pct       = total > 0 ? Math.round((doneCount / total) * 100) : 0;
-                return (
-                  <div key={ev._id} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:border-brand-200 hover:shadow-md">
-                    <div className="mb-3 flex items-start justify-between gap-2">
-                      <p className="text-[13px] font-semibold text-slate-900 leading-snug line-clamp-2 group-hover:text-brand-600 transition-colors">{ev.title}</p>
-                      <span className={cn(
-                        'shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider',
-                        ev.status === 'Ongoing'   ? 'bg-warning-50 text-warning-600' :
-                        ev.status === 'Completed' ? 'bg-success-50 text-success-600' :
-                                                    'bg-slate-100 text-slate-500',
-                      )}>{ev.status}</span>
-                    </div>
-                    <p className="mb-4 text-[11px] text-slate-400">
-                      {new Date(ev.dateRange.start).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                      {ev.venue ? ` · ${ev.venue}` : ''}
-                    </p>
-                    {total > 0 && (
-                      <div>
-                        <div className="mb-1.5 flex items-center justify-between">
-                          <span className="text-[10px] font-medium text-slate-400">Task progress</span>
-                          <span className="text-[10px] font-semibold text-slate-600">{doneCount}/{total}</span>
-                        </div>
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className="h-full rounded-full bg-brand-500 transition-all duration-500"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
+        {/* ── My To Do + Task breakdown ── */}
+        <div className="grid gap-5 lg:grid-cols-12">
+
+          {/* My To Do — 8 cols */}
+          <div className="lg:col-span-8">
+            <MyTodoCard />
+          </div>
+
+          {/* Task breakdown — 4 cols */}
+          <div className="lg:col-span-4">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden h-full">
+              <div className="border-b border-slate-100 px-5 py-4">
+                <h3 className="font-display text-[14px] font-semibold text-slate-900">Task Breakdown</h3>
+                <p className="mt-0.5 text-[11px] text-slate-400">Across all assigned events</p>
+              </div>
+              <div className="p-5 space-y-4">
+                {[
+                  { label: 'Done',        value: done,                          color: 'bg-emerald-500', track: 'bg-emerald-100' },
+                  { label: 'In Progress', value: inProg,                        color: 'bg-amber-400',   track: 'bg-amber-100'   },
+                  { label: 'Pending',     value: allTasks.length - done - inProg, color: 'bg-slate-300', track: 'bg-slate-100'   },
+                ].map(({ label, value, color, track }) => {
+                  const pct = allTasks.length ? Math.round((value / allTasks.length) * 100) : 0;
+                  return (
+                    <div key={label}>
+                      <div className="mb-1.5 flex items-center justify-between text-[11px]">
+                        <span className="font-medium text-slate-600">{label}</span>
+                        <span className="font-bold text-slate-800 tabular-nums">{value} <span className="font-normal text-slate-400">({pct}%)</span></span>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                      <div className={cn('h-2 w-full overflow-hidden rounded-full', track)}>
+                        <div className={cn('h-full rounded-full transition-all duration-500', color)} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div className="mt-2 rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 flex items-center justify-between">
+                  <span className="text-[11px] text-slate-500">Overall completion</span>
+                  <span className="text-[15px] font-bold text-slate-800 tabular-nums">
+                    {allTasks.length ? Math.round((done / allTasks.length) * 100) : 0}%
+                  </span>
+                </div>
+              </div>
             </div>
-          )}
-        </section>
-        <section className="grid gap-6 lg:grid-cols-2">
-          <div><MyTodoCard /></div>
-        </section>
+          </div>
+        </div>
       </div>
     </PageWrapper>
   );

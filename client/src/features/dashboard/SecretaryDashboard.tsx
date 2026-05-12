@@ -52,11 +52,11 @@ export function SecretaryDashboard() {
           </div>
         </section>
 
-        {/* Chart + Recent */}
+        {/* Chart + Recent Events */}
         <section className="grid gap-6 lg:grid-cols-12">
 
-          {/* Bar chart */}
-          <div className="lg:col-span-8 space-y-5">
+          {/* Bar chart — 8 cols */}
+          <div className="lg:col-span-8">
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
               <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
                 <div>
@@ -89,31 +89,15 @@ export function SecretaryDashboard() {
                 )}
               </div>
             </div>
-
-            {/* Quick exports */}
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-              <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Quick Exports</p>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: 'Master List', sub: 'Download CSV' },
-                  { label: 'Event Summary', sub: 'Export PDF' },
-                ].map((item) => (
-                  <button key={item.label} className="group flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 p-4 text-left transition-all hover:border-brand-200 hover:bg-brand-50/30">
-                    <div>
-                      <p className="text-[13px] font-semibold text-slate-800">{item.label}</p>
-                      <p className="mt-0.5 text-[11px] text-slate-400">{item.sub}</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-slate-300 transition-colors group-hover:text-brand-500" />
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
-          {/* Recent events */}
+          {/* Recent events — 4 cols */}
           <div className="lg:col-span-4">
-            <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Recent Events</p>
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden h-full">
+              <div className="border-b border-slate-100 px-5 py-4">
+                <h3 className="font-display text-[14px] font-semibold text-slate-900">Recent Events</h3>
+                <p className="mt-0.5 text-[11px] text-slate-400">{events.length} total</p>
+              </div>
               {events.length === 0 ? (
                 <div className="py-16 text-center text-[13px] text-slate-300">No events yet</div>
               ) : (
@@ -142,9 +126,34 @@ export function SecretaryDashboard() {
           </div>
         </section>
 
-        {/* ── Bottom row: My To Do ── */}
-        <section className="grid gap-6 lg:grid-cols-2">
-          <div><MyTodoCard /></div>
+        {/* My To Do + Quick Exports */}
+        <section className="grid gap-6 lg:grid-cols-12">
+
+          {/* My To Do — 8 cols */}
+          <div className="lg:col-span-8">
+            <MyTodoCard />
+          </div>
+
+          {/* Quick Exports — 4 cols */}
+          <div className="lg:col-span-4">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 h-full">
+              <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Quick Exports</p>
+              <div className="grid grid-cols-1 gap-3">
+                {[
+                  { label: 'Master List', sub: 'Download CSV' },
+                  { label: 'Event Summary', sub: 'Export PDF' },
+                ].map((item) => (
+                  <button key={item.label} className="group flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 p-4 text-left transition-all hover:border-brand-200 hover:bg-brand-50/30">
+                    <div>
+                      <p className="text-[13px] font-semibold text-slate-800">{item.label}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-400">{item.sub}</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-slate-300 transition-colors group-hover:text-brand-500" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </section>
       </div>
     </PageWrapper>
