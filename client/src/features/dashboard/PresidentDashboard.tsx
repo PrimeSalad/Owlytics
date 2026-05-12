@@ -16,6 +16,7 @@ import type { Event, Report } from '@/types';
 import { MessageFeed } from './MessageFeed';
 import { TaskChecklist } from './TaskChecklist';
 import { StatCard } from './StatCard';
+import { MyTodoCard } from './MyTodoCard';
 import { cn } from '@/lib/utils';
 
 /* ── helpers ── */
@@ -201,11 +202,11 @@ export function PresidentDashboard() {
           </div>
         </div>
 
-        {/* ── Bottom row: Events list + Alerts + Accomplishments ── */}
+        {/* ── Bottom row: Events list + Alerts + Accomplishments + My Todo ── */}
         <div className="grid gap-5 lg:grid-cols-12">
 
-          {/* Events list — 5 cols */}
-          <div className="lg:col-span-5">
+          {/* Events list — 4 cols */}
+          <div className="lg:col-span-4">
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <div>
@@ -249,8 +250,8 @@ export function PresidentDashboard() {
             </div>
           </div>
 
-          {/* Emergency alerts — 4 cols */}
-          <div className="lg:col-span-4">
+          {/* Emergency alerts — 3 cols */}
+          <div className="lg:col-span-3">
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden h-full flex flex-col">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <div>
@@ -304,8 +305,8 @@ export function PresidentDashboard() {
             </div>
           </div>
 
-          {/* Accomplishments — 3 cols */}
-          <div className="lg:col-span-3">
+          {/* Accomplishments — 2 cols */}
+          <div className="lg:col-span-2">
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden h-full flex flex-col">
               <div className="border-b border-slate-100 px-5 py-4">
                 <h3 className="font-display text-[14px] font-semibold text-slate-900">Accomplishments</h3>
@@ -332,6 +333,10 @@ export function PresidentDashboard() {
                 )}
               </div>
             </div>
+          </div>
+          {/* My To Do — 3 cols */}
+          <div className="lg:col-span-3">
+            <MyTodoCard />
           </div>
         </div>
       </div>

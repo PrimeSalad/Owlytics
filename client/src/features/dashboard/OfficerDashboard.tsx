@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Event } from '@/types';
 import { MessageFeed } from './MessageFeed';
+import { MyTodoCard } from './MyTodoCard';
 import { cn } from '@/lib/utils';
 
 export function OfficerDashboard() {
@@ -84,6 +85,9 @@ export function OfficerDashboard() {
               })}
             </div>
           )}
+        </section>
+        <section className="grid gap-6 lg:grid-cols-2">
+          <div><MyTodoCard /></div>
         </section>
       </div>
     </PageWrapper>

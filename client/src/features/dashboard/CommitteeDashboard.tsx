@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import type { Event } from '@/types';
 import { MessageFeed } from './MessageFeed';
+import { MyTodoCard } from './MyTodoCard';
 import { cn } from '@/lib/utils';
 
 export function CommitteeDashboard() {
@@ -97,6 +98,9 @@ export function CommitteeDashboard() {
               <p className="pt-1 text-center text-[10px] text-slate-400">Alerts are sent to the president instantly.</p>
             </div>
           </div>
+        </section>
+        <section className="grid gap-6 lg:grid-cols-2">
+          <div><MyTodoCard /></div>
         </section>
       </div>
     </PageWrapper>

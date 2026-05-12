@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { api } from '@/lib/api';
 import type { Event } from '@/types';
 import { MessageFeed } from './MessageFeed';
+import { MyTodoCard } from './MyTodoCard';
 import { cn } from '@/lib/utils';
 
 export function SecretaryDashboard() {
@@ -139,6 +140,11 @@ export function SecretaryDashboard() {
               )}
             </div>
           </div>
+        </section>
+
+        {/* ── Bottom row: My To Do ── */}
+        <section className="grid gap-6 lg:grid-cols-2">
+          <div><MyTodoCard /></div>
         </section>
       </div>
     </PageWrapper>
