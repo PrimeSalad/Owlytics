@@ -9,6 +9,7 @@ create table if not exists system_logs (
   action_type text not null, -- e.g., 'CREATE', 'UPDATE', 'DELETE', 'AUTH'
   resource text not null,    -- e.g., 'USER', 'TASK', 'EVENT', 'ATTENDANCE'
   details text,              -- human-readable description
+  target_id uuid,            -- The UUID of the resource affected (e.g. task id, event id)
   created_at timestamptz not null default now()
 );
 

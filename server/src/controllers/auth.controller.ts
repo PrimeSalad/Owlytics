@@ -23,7 +23,7 @@ export async function login(req: Request, res: Response) {
   await supabase.from('profiles').update({ last_login: new Date().toISOString() }).eq('id', data.user.id);
 
   // Log successful login
-  await logAction(profile.id, 'AUTH', 'USER', `User logged in`);
+  await logAction(profile.id, 'AUTH', 'USER', `User logged in`, profile.id);
 
   res.json({
     access_token: data.session!.access_token,

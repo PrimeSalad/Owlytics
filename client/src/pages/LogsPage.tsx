@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { PageWrapper } from '@/components/layout';
 import { Card, CardBody, Spinner } from '@/components/ui';
-import { Activity, Search, ShieldCheck, Database, Key } from 'lucide-react';
+import { Activity, Search, ShieldCheck, Database, Key, ExternalLink } from 'lucide-react';
 
 interface SystemLog {
   id: string;
   action_type: string;
   resource: string;
   details: string;
+  target_id: string | null;
   created_at: string;
   actor: {
     id: string;
@@ -47,6 +49,7 @@ export default function LogsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchLogs();
@@ -98,6 +101,28 @@ export default function LogsPage() {
       minute: '2-digit',
       second: '2-digit'
     }).format(new Date(dateString));
+  };
+  
+  const handleView = (log: SystemLog) => {
+    if (!log.target_id) return;
+    
+    switch (log.resource) {
+      case 'TASK':
+        navigate(`/tasks?taskId=${log.target_id}`); // Assuming tasks page can handle ?taskId=
+        break;
+      case 'USER':
+        navigate(`/people`); // Or /students depending on context
+        break;
+      case 'EVENT':
+        navigate(`/events`); // Assuming /events handles context
+        break;
+      case 'ATTENDANCE':
+        navigate(`/attendance`);
+        break;
+      default:
+        // Do nothing if resource is unmapped
+        break;
+    }
   };
 
   const authLogsCount = logs.filter(l => l.action_type === 'AUTH').length;
@@ -161,7 +186,7 @@ export default function LogsPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] text-sm">
+                <table className="w-full min-w-[950px] text-sm">
                   <thead>
                     <tr className="border-b border-surface-border bg-surface-muted/70 text-left">
                       <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Timestamp</th>
@@ -169,6 +194,7 @@ export default function LogsPage() {
                       <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Action Type</th>
                       <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Resource</th>
                       <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Event Details</th>
+                      <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-border">
@@ -204,6 +230,17 @@ export default function LogsPage() {
                         </td>
                         <td className="px-6 py-4 text-slate-600 text-sm">
                           {log.details || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {log.target_id && log.action_type !== 'DELETE' && (
+                            <button
+                              onClick={() => handleView(log)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-brand-600 hover:border-brand-200"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              View
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

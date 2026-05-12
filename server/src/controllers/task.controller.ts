@@ -126,7 +126,7 @@ export async function createTask(req: Request, res: Response) {
     .select().single();
   if (error) throw new AppError(400, error.message);
   
-  await logAction(req.user!.userId, 'CREATE', 'TASK', `Created task: "${title}"`);
+  await logAction(req.user!.userId, 'CREATE', 'TASK', `Created task: "${title}"`, data.id);
   
   res.status(201).json({ _id: data.id, ...data });
 }
@@ -152,7 +152,7 @@ export async function updateTask(req: Request, res: Response) {
   const { error } = await supabase.from('tasks').update(update).eq('id', req.params.id);
   if (error) throw new AppError(400, error.message);
   
-  await logAction(req.user!.userId, 'UPDATE', 'TASK', `Updated task ID: ${req.params.id}${status ? ` (Status: ${status})` : ''}`);
+  await logAction(req.user!.userId, 'UPDATE', 'TASK', `Updated task ID: ${req.params.id}${status ? ` (Status: ${status})` : ''}`, req.params.id as string);
   
   res.json({ message: 'Task updated' });
 }
@@ -175,7 +175,7 @@ export async function addComment(req: Request, res: Response) {
   const { error } = await supabase.from('tasks').update({ comments }).eq('id', req.params.id);
   if (error) throw new AppError(400, error.message);
   
-  await logAction(req.user!.userId, 'UPDATE', 'TASK', `Added comment to task ID: ${req.params.id}`);
+  await logAction(req.user!.userId, 'UPDATE', 'TASK', `Added comment to task ID: ${req.params.id}`, req.params.id as string);
   
   res.status(201).json(newComment);
 }
@@ -186,7 +186,7 @@ export async function deleteTask(req: Request, res: Response) {
 
   await supabase.from('tasks').delete().eq('id', req.params.id);
   
-  await logAction(req.user!.userId, 'DELETE', 'TASK', `Deleted task: "${taskTitle}"`);
+  await logAction(req.user!.userId, 'DELETE', 'TASK', `Deleted task: "${taskTitle}"`, req.params.id as string);
   
   res.json({ message: 'Task deleted' });
 }
