@@ -1,6 +1,7 @@
 {
   "name": "student-monitoring-system",
   "private": true,
+  "packageManager": "npm@10.8.3",
   "workspaces": ["client", "server"],
   "scripts": {
     "dev": "turbo run dev",
