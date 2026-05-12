@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
-import { createStudentSchema, updateStudentSchema } from '../validators/student.validator';
+import { createStudentSchema, updateStudentSchema, bulkCreateStudentsSchema } from '../validators/student.validator';
 import { generateStudentQRCode } from '../utils/qrcode';
 
 export async function listSections(_req: Request, res: Response) {
@@ -155,4 +155,34 @@ export async function getStudentQR(req: Request, res: Response) {
   const { qrData, qrUrl } = await generateStudentQRCode(data.student_id, data.first_name, data.last_name, data.section);
   
   res.json({ qrData, qrUrl });
+}
+
+
+export async function bulkCreateStudents(req: Request, res: Response) {
+  const { students } = bulkCreateStudentsSchema.parse(req.body);
+
+  // Generate QR codes in parallel
+  const rows = await Promise.all(
+    students.map(async (s) => {
+      const { qrData } = await generateStudentQRCode(s.studentId, s.name.first, s.name.last, s.section);
+      return {
+        student_id: s.studentId,
+        first_name: s.name.first,
+        last_name: s.name.last,
+        email: s.email,
+        section: s.section,
+        year_level: s.yearLevel,
+        qr_code_data: qrData,
+      };
+    }),
+  );
+
+  const { data, error } = await supabase
+    .from('students')
+    .insert(rows)
+    .select('id, student_id, first_name, last_name, section, year_level');
+
+  if (error) throw new AppError(400, error.message);
+
+  res.status(201).json({ inserted: data?.length ?? 0, students: data });
 }

@@ -9,3 +9,7 @@ export const createStudentSchema = z.object({
 });
 
 export const updateStudentSchema = createStudentSchema.partial();
+
+export const bulkCreateStudentsSchema = z.object({
+  students: z.array(createStudentSchema).min(1).max(200),
+});

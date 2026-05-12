@@ -1,4 +1,4 @@
-import { type ElementType, useEffect, useState } from 'react';
+import { type ElementType, useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import QRCode from 'qrcode';
 import {
@@ -15,6 +15,9 @@ import {
   User as UserIcon,
   UserPlus,
   Users as UsersIcon,
+  Users2,
+  Plus,
+  X,
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -23,6 +26,7 @@ import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
 import { Badge, Button, Card, CardBody, Input, Modal, Spinner } from '@/components/ui';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import type { Student } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 
@@ -34,7 +38,6 @@ const schema = z.object({
   lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Valid email is required'),
   section: z.string().min(1, 'Section is required'),
-  yearLevel: z.coerce.number().int().min(1).max(4),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -55,6 +58,7 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
   const [addDefaultSection, setAddDefaultSection] = useState('');
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [qrStudent, setQrStudent] = useState<Student | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -231,6 +235,9 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
             <Button onClick={handlePrintFiltered} variant="secondary" loading={isPrinting} className="w-full sm:w-auto">
               <Printer className="mr-2 h-4 w-4" /> Print QRs
             </Button>
+            <Button onClick={() => setBulkOpen(true)} variant="secondary" className="w-full sm:w-auto">
+              <Users2 className="mr-2 h-4 w-4" /> Bulk Add
+            </Button>
             <Button onClick={() => setAddOpen(true)} className="w-full sm:w-auto">
               <UserPlus className="mr-2 h-4 w-4" /> Add Student
             </Button>
@@ -392,6 +399,17 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
         <StudentQRModal
           student={qrStudent}
           onClose={() => setQrStudent(null)}
+        />
+      )}
+      {bulkOpen && (
+        <BulkAddModal
+          sections={sections}
+          onClose={() => setBulkOpen(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['students'] });
+            refetchSections();
+            setBulkOpen(false);
+          }}
         />
       )}
     </div>
@@ -598,7 +616,6 @@ function StudentFormModal({
   onSuccess: () => void;
 }) {
   const isEdit = Boolean(student);
-  const [addingNewSection, setAddingNewSection] = useState(false);
   const {
     register,
     handleSubmit,
@@ -614,9 +631,8 @@ function StudentFormModal({
           lastName: student.name.last,
           email: student.email,
           section: student.section,
-          yearLevel: student.yearLevel,
         }
-      : { yearLevel: 1, section: defaultSection },
+      : { section: defaultSection },
   });
 
   const mutation = useMutation({
@@ -626,7 +642,7 @@ function StudentFormModal({
         name: { first: values.firstName, last: values.lastName },
         email: values.email,
         section: values.section,
-        yearLevel: values.yearLevel,
+        yearLevel: yearFromSection(values.section),
       };
       return isEdit ? api.patch(`/students/${student!._id}`, body) : api.post('/students', body);
     },
@@ -647,7 +663,7 @@ function StudentFormModal({
       }}
       title={isEdit ? 'Edit Student' : 'Add Student'}
       description="Student records live here. Account access is created from People."
-      size="lg"
+      size="xl"
     >
       <form onSubmit={handleSubmit((values) => mutation.mutate(values))} className="space-y-6 pt-2">
         <div className="space-y-4">
@@ -663,70 +679,12 @@ function StudentFormModal({
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Academic Details</h4>
           <Input label="Student ID" placeholder="2021-0001" required leftIcon={<Hash className="h-4 w-4" />} hint="Used for QR code generation and matching." error={errors.studentId?.message} {...register('studentId')} />
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                Section <span className="text-danger-500">*</span>
-              </label>
-              {addingNewSection ? (
-                <div className="flex gap-2">
-                  <input
-                    autoFocus
-                    placeholder="e.g. BSIT 3-A"
-                    className="h-[42px] flex-1 rounded-lg border border-brand-400 bg-white px-3 text-sm text-slate-800 outline-none ring-2 ring-brand-500/20"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        const val = (e.target as HTMLInputElement).value.trim();
-                        if (val) { setValue('section', val); }
-                        setAddingNewSection(false);
-                      }
-                      if (e.key === 'Escape') setAddingNewSection(false);
-                    }}
-                    onBlur={(e) => {
-                      const val = e.target.value.trim();
-                      if (val) setValue('section', val);
-                      setAddingNewSection(false);
-                    }}
-                  />
-                  <button type="button" onClick={() => setAddingNewSection(false)}
-                    className="h-[42px] rounded-lg border border-slate-200 px-3 text-[12px] text-slate-500 hover:bg-slate-50">
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <select
-                  {...register('section')}
-                  onChange={(e) => {
-                    if (e.target.value === '__new__') {
-                      setValue('section', '');
-                      setAddingNewSection(true);
-                    } else {
-                      setValue('section', e.target.value);
-                    }
-                  }}
-                  className="h-[42px] w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-                >
-                  <option value="">Select a section</option>
-                  {sections.map((s) => <option key={s} value={s}>{s}</option>)}
-                  <option value="__new__">+ Add new section…</option>
-                </select>
-              )}
-              {errors.section && <p className="mt-1 text-xs text-danger-500">{errors.section.message}</p>}
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-600">
-                Year Level <span className="text-danger">*</span>
-              </label>
-              <select
-                {...register('yearLevel')}
-                className="h-[42px] w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition-all duration-200 hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-              >
-                {[1, 2, 3, 4].map((year) => (
-                  <option key={year} value={year}>{YEAR_LABELS[year]}</option>
-                ))}
-              </select>
-              {errors.yearLevel && <p className="mt-1 text-xs text-danger">{errors.yearLevel.message}</p>}
-            </div>
+            <SectionPicker
+              value={student?.section ?? defaultSection}
+              existingSections={sections}
+              error={errors.section?.message}
+              onChange={(val) => setValue('section', val, { shouldValidate: true })}
+            />
           </div>
         </div>
         
@@ -735,6 +693,302 @@ function StudentFormModal({
           <Button type="submit" loading={mutation.isPending}>{isEdit ? 'Save Changes' : 'Add Student Record'}</Button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+
+const COURSES = ['BSIT', 'BSIS'];
+const YEARS = [1, 2, 3, 4];
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+
+function SectionPicker({
+  value,
+  existingSections,
+  error,
+  onChange,
+}: {
+  value?: string;
+  existingSections: string[];
+  error?: string;
+  onChange: (val: string) => void;
+}) {
+  // Parse existing value e.g. "BSIT 3-A" → course=BSIT, year=3, letter=A
+  const parse = (v = '') => {
+    const m = v.match(/^([A-Z]+)\s+(\d)-([A-G])$/);
+    return m ? { course: m[1], year: m[2], letter: m[3] } : { course: '', year: '', letter: '' };
+  };
+
+  const [parts, setParts] = useState(() => parse(value));
+
+  const update = (next: typeof parts) => {
+    setParts(next);
+    if (next.course && next.year && next.letter) {
+      onChange(`${next.course} ${next.year}-${next.letter}`);
+    }
+  };
+
+  const sel = 'h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 cursor-pointer';
+
+  const preview = parts.course && parts.year && parts.letter
+    ? `${parts.course} ${parts.year}-${parts.letter}` : '';
+
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-medium text-slate-600">
+        Section <span className="text-danger-500">*</span>
+      </label>
+
+      {existingSections.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {existingSections.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => { setParts(parse(s)); onChange(s); }}
+              className={cn(
+                'rounded-lg border px-3 py-1.5 text-sm font-semibold transition-all',
+                preview === s
+                  ? 'border-brand-500 bg-brand-500 text-white shadow-sm'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-700',
+              )}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 gap-2">
+        <select value={parts.course} onChange={(e) => update({ ...parts, course: e.target.value })} className={sel}>
+          <option value="">Course</option>
+          {COURSES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={parts.year} onChange={(e) => update({ ...parts, year: e.target.value })} className={sel}>
+          <option value="">Year</option>
+          {YEARS.map((y) => <option key={y} value={String(y)}>{y}</option>)}
+        </select>
+        <select value={parts.letter} onChange={(e) => update({ ...parts, letter: e.target.value })} className={sel}>
+          <option value="">Block</option>
+          {LETTERS.map((l) => <option key={l} value={l}>{l}</option>)}
+        </select>
+      </div>
+
+      {preview && (
+        <div className="flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2">
+          <span className="text-xs text-slate-500">Selected:</span>
+          <span className="font-bold text-brand-700">{preview}</span>
+        </div>
+      )}
+      {error && <p className="text-xs text-danger-500">{error}</p>}
+    </div>
+  );
+}
+
+// ─── Bulk Add Modal ───────────────────────────────────────────────────────────
+
+interface BulkRow {
+  id: number;
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+function makeRow(id: number): BulkRow {
+  return { id, studentId: '', firstName: '', lastName: '', email: '' };
+}
+
+/** Derive yearLevel from section string e.g. "BSIT 3-A" → 3 */
+function yearFromSection(section: string): number {
+  const m = section.match(/\s(\d)-/);
+  return m ? Number(m[1]) : 1;
+}
+
+function BulkAddModal({
+  sections,
+  onClose,
+  onSuccess,
+}: {
+  sections: string[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [tab, setTab] = useState<'manual' | 'csv'>('manual');
+  const [section, setSection] = useState('');
+  const [rows, setRows] = useState<BulkRow[]>([makeRow(1), makeRow(2), makeRow(3)]);
+  const [csvText, setCsvText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const nextId = useRef(4);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const addRow = () => setRows((prev) => [...prev, makeRow(nextId.current++)]);
+  const removeRow = (id: number) => setRows((prev) => prev.filter((r) => r.id !== id));
+  const updateRow = (id: number, field: keyof Omit<BulkRow, 'id'>, value: string) =>
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
+
+  /** Parse CSV: studentId,firstName,lastName,email (header optional) */
+  const parseCsv = (text: string): BulkRow[] => {
+    const lines = text.trim().split(/\r?\n/).filter(Boolean);
+    const parsed: BulkRow[] = [];
+    for (const line of lines) {
+      const [a, b, c, d] = line.split(',').map((s) => s.trim().replace(/^"|"$/g, ''));
+      // skip header row
+      if (!a || a.toLowerCase() === 'studentid' || a.toLowerCase() === 'student_id' || a.toLowerCase() === 'student id') continue;
+      if (a && b && c && d) {
+        parsed.push({ id: nextId.current++, studentId: a, firstName: b, lastName: c, email: d });
+      }
+    }
+    return parsed;
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      setCsvText(text);
+      const parsed = parseCsv(text);
+      if (parsed.length) {
+        setRows(parsed);
+        toast.success(`${parsed.length} rows loaded from CSV`);
+      } else {
+        toast.error('No valid rows found. Expected: studentId,firstName,lastName,email');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleCsvApply = () => {
+    const parsed = parseCsv(csvText);
+    if (!parsed.length) { toast.error('No valid rows. Expected: studentId,firstName,lastName,email'); return; }
+    setRows(parsed);
+    toast.success(`${parsed.length} rows loaded`);
+  };
+
+  const buildStudents = (sourceRows: BulkRow[]) =>
+    sourceRows
+      .filter((r) => r.studentId.trim() && r.firstName.trim() && r.lastName.trim() && r.email.trim())
+      .map((r) => ({
+        studentId: r.studentId.trim(),
+        name: { first: r.firstName.trim(), last: r.lastName.trim() },
+        email: r.email.trim(),
+        section,
+        yearLevel: yearFromSection(section),
+      }));
+
+  const handleSubmit = async () => {
+    if (!section) { toast.error('Please select a section first'); return; }
+    const students = buildStudents(rows);
+    if (!students.length) { toast.error('Fill in at least one complete row'); return; }
+    try {
+      setSubmitting(true);
+      await api.post('/students/bulk', { students });
+      toast.success(`${students.length} student${students.length > 1 ? 's' : ''} added`);
+      onSuccess();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error ?? 'Bulk add failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const inputCls =
+    'h-9 w-full rounded border border-slate-200 bg-white px-2 text-xs text-slate-800 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20';
+
+  const validCount = buildStudents(rows).length;
+
+  return (
+    <Modal open onClose={onClose} title="Bulk Add Students" description="Select a section once — year level is derived automatically." size="2xl">
+      <div className="space-y-5 pt-1">
+        {/* Section picker */}
+        <SectionPicker value={section} existingSections={sections} onChange={setSection} />
+
+        {/* Tabs */}
+        <div className="flex gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 w-fit">
+          {(['manual', 'csv'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={cn(
+                'rounded-md px-4 py-1.5 text-xs font-semibold transition-all',
+                tab === t ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+              )}
+            >
+              {t === 'manual' ? 'Manual Entry' : 'Import CSV'}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'manual' ? (
+          <div>
+            {/* Column headers */}
+            <div className="mb-2 grid grid-cols-[1.2fr_1fr_1fr_1.5fr_32px] gap-2 px-1">
+              {['Student ID', 'First Name', 'Last Name', 'Email', ''].map((h) => (
+                <span key={h} className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{h}</span>
+              ))}
+            </div>
+
+            <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+              {rows.map((row) => (
+                <div key={row.id} className="grid grid-cols-[1.2fr_1fr_1fr_1.5fr_32px] gap-2 items-center">
+                  <input value={row.studentId} onChange={(e) => updateRow(row.id, 'studentId', e.target.value)} placeholder="2021-0001" className={inputCls} />
+                  <input value={row.firstName} onChange={(e) => updateRow(row.id, 'firstName', e.target.value)} placeholder="Juan" className={inputCls} />
+                  <input value={row.lastName} onChange={(e) => updateRow(row.id, 'lastName', e.target.value)} placeholder="Dela Cruz" className={inputCls} />
+                  <input value={row.email} onChange={(e) => updateRow(row.id, 'email', e.target.value)} placeholder="juan@uni.edu.ph" type="email" className={inputCls} />
+                  <button
+                    type="button"
+                    onClick={() => removeRow(row.id)}
+                    disabled={rows.length === 1}
+                    className="flex h-9 w-8 items-center justify-center rounded text-slate-400 transition hover:bg-danger-50 hover:text-danger-600 disabled:opacity-30"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button type="button" onClick={addRow} className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700">
+              <Plus className="h-3.5 w-3.5" /> Add row
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-slate-500">
+              CSV format: <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px]">studentId,firstName,lastName,email</code> — one student per line. Header row is optional.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Upload .csv file
+              </Button>
+              <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFileUpload} />
+            </div>
+            <textarea
+              value={csvText}
+              onChange={(e) => setCsvText(e.target.value)}
+              placeholder={"2021-0001,Juan,Dela Cruz,juan@uni.edu.ph\n2021-0002,Maria,Santos,maria@uni.edu.ph"}
+              rows={10}
+              className="w-full rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-800 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 resize-none"
+            />
+            <Button variant="secondary" size="sm" onClick={handleCsvApply}>
+              Preview rows
+            </Button>
+            {rows.some((r) => r.studentId) && (
+              <p className="text-xs font-semibold text-brand-600">{validCount} valid row{validCount !== 1 ? 's' : ''} ready to submit</p>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit} loading={submitting} disabled={!section || validCount === 0}>
+            Add {validCount > 0 ? validCount : ''} Student{validCount !== 1 ? 's' : ''}
+          </Button>
+        </div>
+      </div>
     </Modal>
   );
 }
