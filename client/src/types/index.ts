@@ -81,13 +81,25 @@ export interface Report {
   createdAt: string;
 }
 
+export interface Sprint {
+  _id: string;
+  name: string;
+  goal?: string;
+  status: 'Active' | 'Completed' | 'Planning';
+  startDate?: string;
+  endDate?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface Task {
   _id: string;
   title: string;
   description?: string;
   status: 'Todo' | 'InProgress' | 'Done';
+  sprint_id: string;
   assignees: Pick<User, '_id' | 'name' | 'role'>[];
-  visible_to: UserRole[]; // roles that can see this task (President/Secretary always see all)
+  visible_to: UserRole[];
   createdBy: Pick<User, '_id' | 'name' | 'role'>;
   comments: TaskComment[];
   attachments: { url: string; name: string; uploadedBy: string; uploadedAt: string }[];

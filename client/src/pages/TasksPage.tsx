@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   type DragStartEvent, type DragEndEvent, useDroppable, useDraggable,
 } from '@dnd-kit/core';
-import { CheckCircle2, Circle, Clock, Plus, Send, MessageSquare, Users, Calendar, Eye, GripVertical } from 'lucide-react';
+import {
+  CheckCircle2, Circle, Clock, Plus, Send, MessageSquare, Users,
+  Calendar, Eye, GripVertical, ArrowLeft, Trash2, ChevronRight,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
 import { Badge, Button, Card, CardBody, Input, Modal, Spinner } from '@/components/ui';
 import { api } from '@/lib/api';
-import type { Task, UserRole } from '@/types';
+import type { Task, UserRole, Sprint } from '@/types';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 
@@ -29,35 +32,27 @@ const ROLE_COLORS: Record<UserRole, string> = {
   Attendance: 'bg-green-100 text-green-700 border-green-200',
 };
 
-// ── Draggable Task Card ───────────────────────────────────────
-function DraggableCard({
-  task, canCreate, onClick,
-}: { task: Task; canCreate: boolean; onClick: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task._id });
+const STATUS_COLORS: Record<Sprint['status'], string> = {
+  Planning: 'bg-slate-100 text-slate-600',
+  Active: 'bg-green-100 text-green-700',
+  Completed: 'bg-blue-100 text-blue-700',
+};
 
-  const style = transform
-    ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 50 }
-    : undefined;
+
+// ── Draggable Card ────────────────────────────────────────────
+function DraggableCard({ task, canCreate, onClick }: { task: Task; canCreate: boolean; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task._id });
+  const style = transform ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 50 } : undefined;
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...listeners}
-      {...attributes}
-      className={cn('rounded-xl outline-none', isDragging && 'opacity-40')}
-    >
-      <Card
-        className="group cursor-grab active:cursor-grabbing transition-all hover:shadow-lg hover:-translate-y-0.5"
-        onClick={isDragging ? undefined : onClick}
-      >
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes} className={cn('rounded-xl outline-none', isDragging && 'opacity-40')}>
+      <Card className="group cursor-grab active:cursor-grabbing transition-all hover:shadow-lg hover:-translate-y-0.5" onClick={isDragging ? undefined : onClick}>
         <CardBody className="p-4 space-y-3">
           <div className="flex items-start gap-2">
             <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-slate-300 group-hover:text-slate-400" />
             <div className="flex-1 space-y-2">
               <h4 className="font-semibold text-slate-900 leading-snug group-hover:text-brand-600 transition">{task.title}</h4>
               {task.description && <p className="text-xs text-slate-500 line-clamp-2">{task.description}</p>}
-
               {canCreate && task.visible_to?.length > 0 && task.visible_to.length < ALL_ROLES.length && (
                 <div className="flex flex-wrap gap-1">
                   {task.visible_to.map((role) => (
@@ -67,7 +62,6 @@ function DraggableCard({
                   ))}
                 </div>
               )}
-
               <div className="flex items-center gap-3 pt-1 border-t border-slate-100">
                 <div className="flex items-center gap-1.5 text-xs text-slate-400">
                   <MessageSquare className="h-3.5 w-3.5" /><span>{task.comments.length}</span>
@@ -87,17 +81,11 @@ function DraggableCard({
 }
 
 // ── Droppable Column ──────────────────────────────────────────
-function DroppableColumn({
-  col, tasks, canCreate, onTaskClick,
-}: {
-  col: typeof COLUMNS[number];
-  tasks: Task[];
-  canCreate: boolean;
-  onTaskClick: (t: Task) => void;
+function DroppableColumn({ col, tasks, canCreate, onTaskClick }: {
+  col: typeof COLUMNS[number]; tasks: Task[]; canCreate: boolean; onTaskClick: (t: Task) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: col.id });
   const Icon = col.icon;
-
   return (
     <div className="flex flex-col gap-3">
       <div className={cn('flex items-center gap-2 rounded-t-xl border-b-2 bg-gradient-to-br px-4 py-3',
@@ -113,56 +101,62 @@ function DroppableColumn({
           col.color === 'green' && 'bg-green-200 text-green-700',
         )}>{tasks.length}</span>
       </div>
-
-      <div
-        ref={setNodeRef}
-        className={cn(
-          'min-h-[120px] space-y-3 rounded-xl p-2 transition-colors',
-          isOver && 'bg-brand-50 ring-2 ring-brand-300 ring-dashed',
-        )}
-      >
+      <div ref={setNodeRef} className={cn('min-h-[120px] space-y-3 rounded-xl p-2 transition-colors', isOver && 'bg-brand-50 ring-2 ring-brand-300 ring-dashed')}>
         {tasks.length === 0 ? (
-          <div className={cn('rounded-xl border-2 border-dashed py-8 text-center transition-colors',
-            isOver ? 'border-brand-300 bg-brand-50' : 'border-slate-200 bg-slate-50',
-          )}>
+          <div className={cn('rounded-xl border-2 border-dashed py-8 text-center transition-colors', isOver ? 'border-brand-300 bg-brand-50' : 'border-slate-200 bg-slate-50')}>
             <p className="text-xs text-slate-400">{isOver ? 'Drop here' : 'No tasks'}</p>
           </div>
-        ) : (
-          tasks.map((task) => (
-            <DraggableCard key={task._id} task={task} canCreate={canCreate} onClick={() => onTaskClick(task)} />
-          ))
-        )}
+        ) : tasks.map((task) => (
+          <DraggableCard key={task._id} task={task} canCreate={canCreate} onClick={() => onTaskClick(task)} />
+        ))}
       </div>
     </div>
   );
 }
 
+
+import mascot from '@/assets/mascot.png';
+
 // ── Main Page ─────────────────────────────────────────────────
 export function TasksPage() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const [activeSprint, setActiveSprint] = useState<Sprint | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [createSprintOpen, setCreateSprintOpen] = useState(false);
   const [draggingTask, setDraggingTask] = useState<Task | null>(null);
-  const canCreate = user?.role === 'President' || user?.role === 'Secretary';
-
+  const canManage = user?.role === 'President' || user?.role === 'Secretary';
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
-  const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ['tasks'],
-    queryFn: async () => (await api.get<Task[]>('/tasks')).data,
+  const { data: sprints = [], isLoading: sprintsLoading } = useQuery({
+    queryKey: ['sprints'],
+    queryFn: async () => (await api.get<Sprint[]>('/sprints')).data,
+  });
+
+  const { data: tasks = [], isLoading: tasksLoading } = useQuery({
+    queryKey: ['tasks', activeSprint?._id],
+    queryFn: async () => (await api.get<Task[]>(`/tasks?sprint_id=${activeSprint!._id}`)).data,
+    enabled: !!activeSprint,
+  });
+
+  const deleteSprintMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/sprints/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sprints'] });
+      setActiveSprint(null);
+      toast.success('Sprint deleted');
+    },
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: Task['status'] }) =>
-      api.patch(`/tasks/${id}`, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+    mutationFn: ({ id, status }: { id: string; status: Task['status'] }) => api.patch(`/tasks/${id}`, { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks', activeSprint?._id] }),
     onError: () => toast.error('Failed to move task'),
   });
 
   const handleDragStart = (e: DragStartEvent) => {
-    const task = tasks.find((t) => t._id === e.active.id);
-    if (task) setDraggingTask(task);
+    setDraggingTask(tasks.find((t) => t._id === e.active.id) ?? null);
   };
 
   const handleDragEnd = (e: DragEndEvent) => {
@@ -172,66 +166,222 @@ export function TasksPage() {
     const newStatus = over.id as Task['status'];
     const task = tasks.find((t) => t._id === active.id);
     if (!task || task.status === newStatus) return;
-
-    // Optimistic update
-    queryClient.setQueryData<Task[]>(['tasks'], (old = []) =>
+    queryClient.setQueryData<Task[]>(['tasks', activeSprint?._id], (old = []) =>
       old.map((t) => t._id === task._id ? { ...t, status: newStatus } : t)
     );
     statusMutation.mutate({ id: task._id, status: newStatus });
   };
 
+  const [msgIndex, setMsgIndex] = useState(0);
+
+  const mascotLines = sprints.length === 0
+    ? [
+        "Let's get organized. Create your first sprint.",
+        "No sprints, no progress. Start one now.",
+        "A blank board is just a plan waiting to happen.",
+        "Every great project starts with a single sprint.",
+      ]
+    : sprints.some(s => s.status === 'Active')
+    ? [
+        "You have active sprints. Keep the momentum going.",
+        "Tasks don't complete themselves. Let's move.",
+        "Pick a sprint and let's get to work.",
+        "Focus on one sprint at a time. You got this.",
+        "Progress is made one task at a time.",
+        "Stay consistent. Open a sprint and push forward.",
+      ]
+    : [
+        "All sprints are in planning. Time to activate one.",
+        "Ready when you are. Pick a sprint to begin.",
+        "Plans are nothing without execution. Open a sprint.",
+        "A plan without action is just a wish.",
+      ];
+
+  useEffect(() => {
+    setMsgIndex(0);
+    const t = setInterval(() => setMsgIndex((i) => (i + 1) % mascotLines.length), 4000);
+    return () => clearInterval(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sprints.length]);
+
+  // ── Sprint Selector Screen ────────────────────────────────
+  if (!activeSprint) {
+    return (
+      <PageWrapper title="Task Management" description="Pick a sprint to open its board.">
+        <div className="space-y-6">
+
+          {/* Hero banner */}
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0d1f17] to-[#1a3a28] px-8 py-7">
+            <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex-1">
+                <p className="text-xs font-bold uppercase tracking-widest text-brand-400 mb-1">Sprint Board</p>
+                <h2 className="text-2xl font-bold text-white leading-tight">
+                  Hey {user?.name.first}, ready<br />to get things done?
+                </h2>
+                <p className="mt-2 text-sm text-white/50">
+                  {sprints.length === 0
+                    ? 'No sprints yet. Create one to start organizing tasks.'
+                    : `${sprints.filter(s => s.status === 'Active').length} active · ${sprints.filter(s => s.status === 'Planning').length} planning · ${sprints.filter(s => s.status === 'Completed').length} completed`}
+                </p>
+                {canManage && (
+                  <button
+                    onClick={() => setCreateSprintOpen(true)}
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-900/40 transition hover:bg-brand-400 active:scale-95"
+                  >
+                    <Plus className="h-4 w-4" /> New Sprint
+                  </button>
+                )}
+              </div>
+
+              {/* Mascot + speech bubble */}
+              <div className="relative flex shrink-0 items-center gap-3">
+                {/* Speech bubble — left of mascot */}
+                <div className="relative w-[220px] rounded-2xl rounded-br-sm bg-white/10 px-5 py-3 backdrop-blur-sm border border-white/10 shadow-lg">
+                  <p key={msgIndex} className="text-xs font-medium leading-relaxed text-white/90 text-center animate-fade-up">
+                    {mascotLines[msgIndex]}
+                  </p>
+                  {/* bubble tail pointing right */}
+                  <div className="absolute right-[-8px] top-1/2 -translate-y-1/2 h-0 w-0 border-y-[7px] border-l-[8px] border-y-transparent border-l-white/10" />
+                </div>
+                <img src={mascot} alt="" className="h-28 w-28 object-contain drop-shadow-2xl select-none pointer-events-none" />
+              </div>
+            </div>
+            {/* subtle grid bg */}
+            <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
+              style={{ backgroundImage: 'repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 40px)' }} />
+          </div>
+
+          {sprintsLoading ? (
+            <div className="flex justify-center py-20"><Spinner size="lg" /></div>
+          ) : sprints.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-20 text-center">
+              <img src={mascot} alt="" className="mb-4 h-20 w-20 object-contain opacity-30 select-none" />
+              <p className="font-semibold text-slate-500">No sprints yet</p>
+              <p className="mt-1 text-sm text-slate-400">Create a sprint to start organizing tasks.</p>
+              {canManage && (
+                <button onClick={() => setCreateSprintOpen(true)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-brand-400">
+                  <Plus className="h-4 w-4" /> Create First Sprint
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              {sprints.map((sprint) => (
+                <div
+                  key={sprint._id}
+                  onClick={() => setActiveSprint(sprint)}
+                  className="group relative cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:border-brand-300 hover:shadow-lg hover:-translate-y-1"
+                >
+                  {/* Status pill */}
+                  <span className={cn('inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider mb-3', STATUS_COLORS[sprint.status])}>
+                    {sprint.status}
+                  </span>
+
+                  <h3 className="font-bold text-slate-900 group-hover:text-brand-600 transition-colors leading-snug">{sprint.name}</h3>
+                  {sprint.goal && <p className="mt-1.5 text-xs text-slate-500 line-clamp-2 leading-relaxed">{sprint.goal}</p>}
+
+                  {(sprint.startDate || sprint.endDate) && (
+                    <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
+                      <Calendar className="h-3.5 w-3.5 shrink-0" />
+                      <span>{sprint.startDate ? new Date(sprint.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
+                      <span className="text-slate-300">→</span>
+                      <span>{sprint.endDate ? new Date(sprint.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-xs font-medium text-brand-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                      Open board →
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-brand-400 transition-colors" />
+                  </div>
+
+                  {canManage && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Delete sprint "${sprint.name}"? All its tasks will also be deleted.`)) {
+                          deleteSprintMutation.mutate(sprint._id);
+                        }
+                      }}
+                      className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-300 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-50 hover:text-red-500"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {createSprintOpen && (
+          <CreateSprintModal
+            onClose={() => setCreateSprintOpen(false)}
+            onSuccess={(sprint) => {
+              queryClient.invalidateQueries({ queryKey: ['sprints'] });
+              setCreateSprintOpen(false);
+              setActiveSprint(sprint);
+            }}
+          />
+        )}
+      </PageWrapper>
+    );
+  }
+
+  // ── Kanban Board ──────────────────────────────────────────
   return (
-    <PageWrapper title="Task Management" description="Drag tasks between columns or click to view details.">
+    <PageWrapper
+      title={activeSprint.name}
+      description={activeSprint.goal ?? 'Drag tasks between columns to update status.'}
+    >
       <div className="space-y-5">
         <div className="flex items-center justify-between">
-          <div className="flex gap-3">
-            {COLUMNS.map((col) => {
-              const count = tasks.filter((t) => t.status === col.id).length;
-              const Icon = col.icon;
-              return (
-                <div key={col.id} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
-                  <Icon className={cn('h-4 w-4', `text-${col.color}-600`)} />
-                  <span className="text-sm font-semibold text-slate-700">{col.label}</span>
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-700">{count}</span>
-                </div>
-              );
-            })}
+          <div className="flex items-center gap-3">
+            <button onClick={() => setActiveSprint(null)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition">
+              <ArrowLeft className="h-4 w-4" /> Sprints
+            </button>
+            <span className={cn('rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider', STATUS_COLORS[activeSprint.status])}>
+              {activeSprint.status}
+            </span>
+            <div className="flex gap-2">
+              {COLUMNS.map((col) => {
+                const count = tasks.filter((t) => t.status === col.id).length;
+                const Icon = col.icon;
+                return (
+                  <div key={col.id} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs shadow-sm">
+                    <Icon className={cn('h-3.5 w-3.5', `text-${col.color}-600`)} />
+                    <span className="font-semibold text-slate-600">{col.label}</span>
+                    <span className="font-bold text-slate-800">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          {canCreate && (
-            <Button onClick={() => setCreateOpen(true)} className="shadow-lg shadow-brand-500/20">
+          {canManage && (
+            <Button onClick={() => setCreateTaskOpen(true)} className="shadow-lg shadow-brand-500/20">
               <Plus className="mr-2 h-4 w-4" /> New Task
             </Button>
           )}
         </div>
 
-        {isLoading ? (
+        {tasksLoading ? (
           <div className="flex justify-center py-20"><Spinner size="lg" /></div>
         ) : (
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {COLUMNS.map((col) => (
-                <DroppableColumn
-                  key={col.id}
-                  col={col}
-                  tasks={tasks.filter((t) => t.status === col.id)}
-                  canCreate={canCreate}
-                  onTaskClick={setSelectedTask}
-                />
+                <DroppableColumn key={col.id} col={col} tasks={tasks.filter((t) => t.status === col.id)} canCreate={canManage} onTaskClick={setSelectedTask} />
               ))}
             </div>
-
-            {/* Drag overlay — ghost card while dragging */}
             <DragOverlay>
               {draggingTask && (
                 <div className="rotate-2 scale-105 opacity-95 shadow-2xl">
-                  <Card>
-                    <CardBody className="p-4">
-                      <h4 className="font-semibold text-slate-900">{draggingTask.title}</h4>
-                      {draggingTask.description && (
-                        <p className="mt-1 text-xs text-slate-500 line-clamp-2">{draggingTask.description}</p>
-                      )}
-                    </CardBody>
-                  </Card>
+                  <Card><CardBody className="p-4">
+                    <h4 className="font-semibold text-slate-900">{draggingTask.title}</h4>
+                    {draggingTask.description && <p className="mt-1 text-xs text-slate-500 line-clamp-2">{draggingTask.description}</p>}
+                  </CardBody></Card>
                 </div>
               )}
             </DragOverlay>
@@ -239,29 +389,70 @@ export function TasksPage() {
         )}
       </div>
 
-      {createOpen && (
+      {createTaskOpen && (
         <CreateTaskModal
-          onClose={() => setCreateOpen(false)}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['tasks'] });
-            setCreateOpen(false);
-          }}
+          sprintId={activeSprint._id}
+          onClose={() => setCreateTaskOpen(false)}
+          onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['tasks', activeSprint._id] }); setCreateTaskOpen(false); }}
         />
       )}
-
       {selectedTask && (
         <TaskDetailModal
           task={selectedTask}
           onClose={() => setSelectedTask(null)}
-          onUpdate={() => queryClient.invalidateQueries({ queryKey: ['tasks'] })}
+          onUpdate={() => queryClient.invalidateQueries({ queryKey: ['tasks', activeSprint._id] })}
         />
       )}
     </PageWrapper>
   );
 }
 
+
+// ── Create Sprint Modal ───────────────────────────────────────
+function CreateSprintModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (s: Sprint) => void }) {
+  const [name, setName] = useState('');
+  const [goal, setGoal] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: () => api.post<Sprint>('/sprints', { name, goal, startDate: startDate || undefined, endDate: endDate || undefined }),
+    onSuccess: (res) => { toast.success('Sprint created'); onSuccess(res.data); },
+    onError: () => toast.error('Failed to create sprint'),
+  });
+
+  return (
+    <Modal open onClose={onClose} title="New Sprint" size="lg">
+      <div className="space-y-4 pt-2">
+        <Input label="Sprint Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sprint 1 — May 2026" required />
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-slate-600">Goal <span className="text-slate-400">(optional)</span></label>
+          <textarea value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="What should this sprint achieve?" rows={2}
+            className="w-full rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-slate-600">Start Date</label>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+              className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-slate-600">End Date</label>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+              className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20" />
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end border-t border-slate-100 pt-4">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => mutation.mutate()} loading={mutation.isPending} disabled={!name.trim()}>Create Sprint</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // ── Create Task Modal ─────────────────────────────────────────
-function CreateTaskModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function CreateTaskModal({ sprintId, onClose, onSuccess }: { sprintId: string; onClose: () => void; onSuccess: () => void }) {
   const { user } = useAuthStore();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -272,8 +463,7 @@ function CreateTaskModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     setVisibleTo((prev) => prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]);
 
   const mutation = useMutation({
-    mutationFn: (data: { title: string; description?: string; visible_to: UserRole[] }) =>
-      api.post('/tasks', data),
+    mutationFn: () => api.post('/tasks', { title, description, sprint_id: sprintId, visible_to: visibleTo }),
     onSuccess: () => { toast.success('Task created'); onSuccess(); },
     onError: () => toast.error('Failed to create task'),
   });
@@ -284,20 +474,13 @@ function CreateTaskModal({ onClose, onSuccess }: { onClose: () => void; onSucces
         <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" required />
         <div>
           <label className="mb-1.5 block text-xs font-medium text-slate-600">Description</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Task description (optional)"
-            rows={3}
-            className="w-full rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-          />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" rows={3}
+            className="w-full rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20" />
         </div>
-
         {canSetVisibility && (
           <div>
             <label className="mb-2 block text-xs font-medium text-slate-600">
-              <Eye className="mr-1 inline h-3.5 w-3.5" />
-              Visible to roles
+              <Eye className="mr-1 inline h-3.5 w-3.5" />Visible to roles
               <span className="ml-2 text-slate-400">(President &amp; Secretary always see all)</span>
             </label>
             <div className="flex flex-wrap gap-2">
@@ -306,32 +489,24 @@ function CreateTaskModal({ onClose, onSuccess }: { onClose: () => void; onSucces
                 return (
                   <button key={role} type="button" onClick={() => toggleRole(role)}
                     className={cn('rounded-full border px-3 py-1.5 text-xs font-bold transition-all',
-                      checked ? ROLE_COLORS[role] + ' shadow-sm' : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300',
-                    )}
-                  >
+                      checked ? ROLE_COLORS[role] + ' shadow-sm' : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300'
+                    )}>
                     {checked ? '✓ ' : ''}{role}
                   </button>
                 );
               })}
             </div>
-            {visibleTo.length === 0 && <p className="mt-1.5 text-xs text-red-500">Select at least one role.</p>}
           </div>
         )}
-
         <div className="flex gap-2 justify-end border-t border-slate-100 pt-4">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button
-            onClick={() => mutation.mutate({ title, description, visible_to: visibleTo })}
-            loading={mutation.isPending}
-            disabled={!title.trim() || visibleTo.length === 0}
-          >
-            Create Task
-          </Button>
+          <Button onClick={() => mutation.mutate()} loading={mutation.isPending} disabled={!title.trim() || visibleTo.length === 0}>Create Task</Button>
         </div>
       </div>
     </Modal>
   );
 }
+
 
 // ── Task Detail Modal ─────────────────────────────────────────
 function TaskDetailModal({ task, onClose, onUpdate }: { task: Task; onClose: () => void; onUpdate: () => void }) {
@@ -351,7 +526,7 @@ function TaskDetailModal({ task, onClose, onUpdate }: { task: Task; onClose: () 
   return (
     <Modal open onClose={onClose} title="" size="2xl">
       <div className="space-y-5">
-        <div className="space-y-3">
+        <div className="space-y-2">
           <h2 className="text-2xl font-bold text-slate-900">{task.title}</h2>
           {task.description && <p className="text-sm leading-relaxed text-slate-600">{task.description}</p>}
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
@@ -377,15 +552,12 @@ function TaskDetailModal({ task, onClose, onUpdate }: { task: Task; onClose: () 
               const isActive = task.status === col.id;
               return (
                 <button key={col.id} onClick={() => statusMutation.mutate(col.id)} disabled={statusMutation.isPending}
-                  className={cn(
-                    'flex flex-1 items-center justify-center gap-2 rounded-lg border-2 px-4 py-2.5 text-sm font-semibold transition-all',
+                  className={cn('flex flex-1 items-center justify-center gap-2 rounded-lg border-2 px-4 py-2.5 text-sm font-semibold transition-all',
                     isActive && col.color === 'red' && 'border-red-400 bg-red-50 text-red-700 shadow-sm',
-                    isActive && col.color === 'slate' && 'border-slate-400 bg-slate-50 text-slate-700 shadow-sm',
                     isActive && col.color === 'blue' && 'border-blue-400 bg-blue-50 text-blue-700 shadow-sm',
                     isActive && col.color === 'green' && 'border-green-400 bg-green-50 text-green-700 shadow-sm',
                     !isActive && 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50',
-                  )}
-                >
+                  )}>
                   <Icon className="h-4 w-4" />{col.label}
                 </button>
               );
@@ -398,43 +570,35 @@ function TaskDetailModal({ task, onClose, onUpdate }: { task: Task; onClose: () 
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Discussion</h4>
             <Badge variant="default" className="bg-slate-100 text-slate-600">{task.comments.length} comment{task.comments.length !== 1 ? 's' : ''}</Badge>
           </div>
-
           <div className="max-h-72 space-y-3 overflow-y-auto rounded-lg bg-slate-50 p-4">
             {task.comments.length === 0 ? (
               <div className="py-8 text-center">
                 <MessageSquare className="mx-auto h-8 w-8 text-slate-300" />
                 <p className="mt-2 text-sm text-slate-400">No comments yet.</p>
               </div>
-            ) : (
-              task.comments.map((c) => (
-                <div key={c._id} className="flex gap-3 rounded-lg bg-white p-3 shadow-sm">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-xs font-bold text-white">
-                    {c.userId.name?.first?.[0]}{c.userId.name?.last?.[0]}
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-800">{c.userId.name?.first} {c.userId.name?.last}</span>
-                      <Badge variant="default" className="bg-brand-50 text-brand-700 text-[10px] font-bold">{c.userId.role}</Badge>
-                      <span className="text-xs text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
-                    </div>
-                    <p className="text-sm text-slate-700">{c.content}</p>
-                  </div>
+            ) : task.comments.map((c) => (
+              <div key={c._id} className="flex gap-3 rounded-lg bg-white p-3 shadow-sm">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-xs font-bold text-white">
+                  {c.userId.name?.first?.[0]}{c.userId.name?.last?.[0]}
                 </div>
-              ))
-            )}
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-800">{c.userId.name?.first} {c.userId.name?.last}</span>
+                    <Badge variant="default" className="bg-brand-50 text-brand-700 text-[10px] font-bold">{c.userId.role}</Badge>
+                    <span className="text-xs text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
+                  </div>
+                  <p className="text-sm text-slate-700">{c.content}</p>
+                </div>
+              </div>
+            ))}
           </div>
-
           <div className="flex gap-2">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-xs font-bold text-white">
               {user?.name.first[0]}{user?.name.last[0]}
             </div>
-            <input
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Add a comment..."
+            <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Add a comment..."
               className="h-10 flex-1 rounded-lg border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-              onKeyDown={(e) => { if (e.key === 'Enter' && comment.trim()) commentMutation.mutate(comment); }}
-            />
+              onKeyDown={(e) => { if (e.key === 'Enter' && comment.trim()) commentMutation.mutate(comment); }} />
             <Button size="sm" onClick={() => comment.trim() && commentMutation.mutate(comment)} loading={commentMutation.isPending} disabled={!comment.trim()}>
               <Send className="h-4 w-4" />
             </Button>

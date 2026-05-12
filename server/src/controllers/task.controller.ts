@@ -3,53 +3,49 @@ import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
 
 export async function listTasks(req: Request, res: Response) {
-  const { data, error } = await supabase
+  const { sprint_id } = req.query;
+  if (!sprint_id) throw new AppError(400, 'sprint_id is required');
+
+  let query = supabase
     .from('tasks')
     .select('*, created_by:profiles(id,first_name,last_name,role)')
+    .eq('sprint_id', sprint_id as string)
     .order('created_at', { ascending: false });
+
+  const { data, error } = await query;
   if (error) throw new AppError(500, error.message);
-  
+
   const userRole = req.user!.role;
   const canSeeAll = userRole === 'President' || userRole === 'Secretary';
-  
+
   const tasks = (data ?? [])
     .filter((t: any) => canSeeAll || (t.visible_to && t.visible_to.includes(userRole)))
     .map((t: any) => ({
-      _id: t.id,
-      title: t.title,
-      description: t.description,
-      status: t.status,
-      assignees: t.assignees || [],
-      visible_to: t.visible_to || [],
+      _id: t.id, title: t.title, description: t.description,
+      status: t.status, sprint_id: t.sprint_id,
+      assignees: t.assignees || [], visible_to: t.visible_to || [],
       createdBy: t.created_by ? { _id: t.created_by.id, name: { first: t.created_by.first_name, last: t.created_by.last_name }, role: t.created_by.role } : null,
-      comments: t.comments || [],
-      attachments: t.attachments || [],
-      viewingNow: t.viewing_now || [],
-      createdAt: t.created_at,
-      updatedAt: t.updated_at,
+      comments: t.comments || [], attachments: t.attachments || [],
+      viewingNow: t.viewing_now || [], createdAt: t.created_at, updatedAt: t.updated_at,
     }));
-  
+
   res.json(tasks);
 }
 
 export async function createTask(req: Request, res: Response) {
-  const { title, description, assignees, visible_to } = req.body;
+  const { title, description, assignees, visible_to, sprint_id } = req.body;
+  if (!sprint_id) throw new AppError(400, 'sprint_id is required');
   const allRoles = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance'];
   const { data, error } = await supabase
     .from('tasks')
     .insert({
-      title,
-      description,
-      status: 'Todo',
+      title, description, status: 'Todo', sprint_id,
       assignees: assignees || [],
       visible_to: visible_to?.length ? visible_to : allRoles,
       created_by: req.user!.userId,
-      comments: [],
-      attachments: [],
-      viewing_now: [],
+      comments: [], attachments: [], viewing_now: [],
     })
-    .select()
-    .single();
+    .select().single();
   if (error) throw new AppError(400, error.message);
   res.status(201).json({ _id: data.id, ...data });
 }
