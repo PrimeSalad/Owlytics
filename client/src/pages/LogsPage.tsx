@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { PageWrapper } from '@/components/layout';
 import { Card, CardBody, Spinner } from '@/components/ui';
-import { Activity, Search } from 'lucide-react';
+import { Activity, Search, ShieldCheck, Database, Key } from 'lucide-react';
 
 interface SystemLog {
   id: string;
@@ -18,10 +18,35 @@ interface SystemLog {
   } | null;
 }
 
+function MetricCard({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: number | string;
+  icon: any;
+}) {
+  return (
+    <Card>
+      <CardBody className="flex items-center justify-between p-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
+        </div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+          <Icon className="h-5 w-5" />
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
+
 export default function LogsPage() {
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [actionFilter, setActionFilter] = useState('');
 
   useEffect(() => {
     fetchLogs();
@@ -42,20 +67,24 @@ export default function LogsPage() {
     const term = searchTerm.toLowerCase();
     const actorName = log.actor ? `${log.actor.first_name} ${log.actor.last_name}`.toLowerCase() : 'system';
     const details = log.details || '';
-    return (
+    
+    const matchesSearch = 
       details.toLowerCase().includes(term) ||
-      log.action_type.toLowerCase().includes(term) ||
       log.resource.toLowerCase().includes(term) ||
-      actorName.includes(term)
-    );
+      actorName.includes(term);
+      
+    const matchesAction = actionFilter ? log.action_type === actionFilter : true;
+    
+    return matchesSearch && matchesAction;
   });
 
   const getActionColor = (action: string) => {
     switch (action) {
-      case 'CREATE': return 'bg-success-50 text-success-700 border-success-200';
-      case 'UPDATE': return 'bg-warning-50 text-warning-700 border-warning-200';
-      case 'DELETE': return 'bg-danger-50 text-danger-700 border-danger-200';
-      case 'AUTH': return 'bg-brand-50 text-brand-700 border-brand-200';
+      case 'CREATE': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'UPDATE': return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'DELETE': return 'bg-rose-50 text-rose-700 border-rose-200';
+      case 'AUTH': return 'bg-purple-50 text-purple-700 border-purple-200';
+      case 'SYSTEM': return 'bg-slate-100 text-slate-700 border-slate-300';
       default: return 'bg-slate-50 text-slate-700 border-slate-200';
     }
   };
@@ -71,86 +100,120 @@ export default function LogsPage() {
     }).format(new Date(dateString));
   };
 
+  const authLogsCount = logs.filter(l => l.action_type === 'AUTH').length;
+  const sysLogsCount = logs.filter(l => l.action_type !== 'AUTH').length;
+
   return (
     <PageWrapper
       title="System Logs"
+      description="Comprehensive audit trail of system activities and access records."
     >
-      <div className="text-sm text-slate-500 mb-6">
-        Comprehensive audit trail of system activities
-      </div>
-
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search logs by actor, action, or details..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-10 w-full rounded-lg border border-surface-border bg-white pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-          />
+      <div className="space-y-5">
+        
+        {/* Metrics */}
+        <div className="grid gap-3 md:grid-cols-3">
+          <MetricCard label="Total Audit Logs" value={logs.length} icon={Database} />
+          <MetricCard label="Authentication Events" value={authLogsCount} icon={Key} />
+          <MetricCard label="System Modifications" value={sysLogsCount} icon={ShieldCheck} />
         </div>
-      </div>
 
-      <Card>
-        <CardBody className="p-0">
-          <div className="overflow-x-auto">
+        {/* Filters */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex w-full flex-col gap-2 sm:flex-row lg:max-w-3xl">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search logs by actor, resource, or details..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-10 w-full rounded-lg border border-surface-border bg-white pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              />
+            </div>
+            
+            <select
+              value={actionFilter}
+              onChange={(e) => setActionFilter(e.target.value)}
+              className="h-10 rounded-lg border border-surface-border bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+            >
+              <option value="">All Actions</option>
+              <option value="AUTH">Authentication</option>
+              <option value="CREATE">Create</option>
+              <option value="UPDATE">Update</option>
+              <option value="DELETE">Delete</option>
+              <option value="SYSTEM">System Event</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Data Table */}
+        <Card>
+          <CardBody className="p-0">
             {loading ? (
-              <div className="flex justify-center p-12">
-                <Spinner className="h-8 w-8 text-brand-500" />
-              </div>
+              <div className="flex justify-center py-16"><Spinner size="lg" /></div>
             ) : filteredLogs.length === 0 ? (
-              <div className="p-12 text-center text-slate-500">
-                No logs found matching your criteria.
+              <div className="px-6 py-20 text-center">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted">
+                  <Activity className="h-6 w-6 text-slate-300" />
+                </div>
+                <p className="text-sm font-semibold text-slate-700">No logs found</p>
+                <p className="mt-1 text-xs text-slate-400">There are no system activities matching your current filters.</p>
               </div>
             ) : (
-              <table className="w-full text-left text-sm min-w-[820px]">
-                <thead>
-                  <tr className="border-b border-surface-border bg-surface-muted/70 text-left">
-                    <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Timestamp</th>
-                    <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Actor</th>
-                    <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Action</th>
-                    <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Resource</th>
-                    <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Details</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-border">
-                  {filteredLogs.map((log) => (
-                    <tr key={log.id} className="transition-colors hover:bg-surface-muted/40">
-                      <td className="px-6 py-4 text-slate-600 whitespace-nowrap">
-                        {formatDate(log.created_at)}
-                      </td>
-                      <td className="px-6 py-4">
-                        {log.actor ? (
-                          <div>
-                            <div className="font-semibold text-slate-800">{log.actor.first_name} {log.actor.last_name}</div>
-                            <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400">{log.actor.role}</div>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 italic">System</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getActionColor(log.action_type)}`}>
-                          {log.action_type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="rounded border border-surface-border bg-surface-muted px-2 py-1 font-mono text-xs text-slate-600">
-                          {log.resource}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-slate-600">
-                        {log.details || '-'}
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-sm">
+                  <thead>
+                    <tr className="border-b border-surface-border bg-surface-muted/70 text-left">
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Timestamp</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Actor</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Action Type</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Resource</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Event Details</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-surface-border">
+                    {filteredLogs.map((log) => (
+                      <tr key={log.id} className="transition-colors hover:bg-surface-muted/40">
+                        <td className="px-6 py-4 text-xs font-medium text-slate-500 whitespace-nowrap">
+                          {formatDate(log.created_at)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600 border border-slate-200">
+                              {log.actor ? `${log.actor.first_name[0]}${log.actor.last_name[0]}` : 'SY'}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-slate-800">
+                                {log.actor ? `${log.actor.first_name} ${log.actor.last_name}` : 'System Agent'}
+                              </p>
+                              <p className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                {log.actor ? log.actor.role : 'Automated Process'}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getActionColor(log.action_type)}`}>
+                            {log.action_type}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="rounded border border-surface-border bg-surface-muted px-2 py-1 font-mono text-xs font-medium text-slate-600">
+                            {log.resource}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-600 text-sm">
+                          {log.details || '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </div>
-        </CardBody>
-      </Card>
+          </CardBody>
+        </Card>
+      </div>
     </PageWrapper>
   );
 }
