@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reportRouter = void 0;
+const express_1 = require("express");
+const report_controller_1 = require("../controllers/report.controller");
+const requireAuth_1 = require("../middleware/requireAuth");
+const requireRole_1 = require("../middleware/requireRole");
+exports.reportRouter = (0, express_1.Router)();
+exports.reportRouter.use(requireAuth_1.requireAuth);
+exports.reportRouter.get('/', (0, requireRole_1.requireRole)('Officer', 'President', 'Secretary'), report_controller_1.listReports);
+exports.reportRouter.post('/', (0, requireRole_1.requireRole)('Committee', 'Officer'), report_controller_1.createReport);
+exports.reportRouter.get('/:id', report_controller_1.getReport);
+exports.reportRouter.patch('/:id/resolve', (0, requireRole_1.requireRole)('President', 'Officer'), report_controller_1.resolveReport);
+exports.reportRouter.post('/accomplishment/:eventId', (0, requireRole_1.requireRole)('Secretary', 'President'), report_controller_1.generateAccomplishment);

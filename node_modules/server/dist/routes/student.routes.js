@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.studentRouter = void 0;
+const express_1 = require("express");
+const student_controller_1 = require("../controllers/student.controller");
+const requireAuth_1 = require("../middleware/requireAuth");
+const requireRole_1 = require("../middleware/requireRole");
+const upload_1 = require("../middleware/upload");
+exports.studentRouter = (0, express_1.Router)();
+exports.studentRouter.use(requireAuth_1.requireAuth);
+exports.studentRouter.get('/', (0, requireRole_1.requireRole)('Secretary', 'Officer', 'President'), student_controller_1.listStudents);
+exports.studentRouter.post('/', (0, requireRole_1.requireRole)('President', 'Secretary'), student_controller_1.createStudent);
+exports.studentRouter.post('/import', (0, requireRole_1.requireRole)('President', 'Secretary'), upload_1.upload.single('file'), student_controller_1.importStudents);
+exports.studentRouter.get('/:id', (0, requireRole_1.requireRole)('Secretary', 'Officer', 'President', 'Attendance'), student_controller_1.getStudent);
+exports.studentRouter.patch('/:id', (0, requireRole_1.requireRole)('President', 'Secretary'), student_controller_1.updateStudent);
+exports.studentRouter.delete('/:id', (0, requireRole_1.requireRole)('President', 'Secretary'), student_controller_1.deleteStudent);
+exports.studentRouter.get('/:id/qr', (0, requireRole_1.requireRole)('President', 'Secretary', 'Attendance'), student_controller_1.getStudentQR);
