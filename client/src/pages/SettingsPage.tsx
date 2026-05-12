@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { User, Mail, Shield, Camera, Check, X } from 'lucide-react';
+import { User, Mail, Shield, Camera, Check, X, Hash, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
 import { Button, Card, CardBody, Input, Badge } from '@/components/ui';
@@ -24,7 +24,7 @@ export function SettingsPage() {
   const [firstName, setFirstName] = useState(user?.name.first || '');
   const [lastName, setLastName] = useState(user?.name.last || '');
   const [avatarColor, setAvatarColor] = useState(0);
-  const [avatarImage, setAvatarImage] = useState<string | null>(null);
+  const [avatarImage, setAvatarImage] = useState<string | null>(user?.avatarUrl || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const mutation = useMutation({
@@ -57,26 +57,40 @@ export function SettingsPage() {
 
   const currentColor = AVATAR_COLORS[avatarColor];
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    }).format(new Date(dateString));
+  };
+
   return (
-    <PageWrapper title="Settings" description="Manage your profile and preferences.">
+    <PageWrapper title="Profile & Settings" description="Manage your account details and system preferences.">
       <div className="space-y-6">
-        {/* Profile Card */}
         <Card>
           <CardBody className="p-8 space-y-8">
-            {/* Header */}
-            <div className="flex items-center justify-between">
+            {/* Header & Status */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Profile Settings</h3>
-                <p className="mt-1 text-sm text-slate-500">Customize your profile appearance and information</p>
+                <h3 className="text-xl font-bold text-slate-900">Account Configuration</h3>
+                <p className="mt-1 text-sm text-slate-500">Update your operational identity within Owlytics.</p>
               </div>
-              <Badge variant="default" className="bg-brand-50 text-brand-700 font-bold">
-                {roleLabel(user?.role ?? '')}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="default" className={cn(
+                  "font-bold uppercase tracking-wider",
+                  user?.isActive ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
+                )}>
+                  {user?.isActive ? 'Active Account' : 'Deactivated'}
+                </Badge>
+                <Badge variant="default" className="bg-brand-50 text-brand-700 font-bold uppercase tracking-wider">
+                  {roleLabel(user?.role ?? '')}
+                </Badge>
+              </div>
             </div>
 
             {/* Avatar Section */}
             <div className="space-y-4 border-t border-slate-100 pt-6">
-              <h4 className="text-sm font-bold text-slate-700">Profile Picture</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Visual Identity</h4>
               <div className="flex items-center gap-6">
                 <div className="relative">
                   {avatarImage ? (
@@ -103,11 +117,11 @@ export function SettingsPage() {
 
                 <div className="flex-1 space-y-3">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-slate-700">Avatar Color</p>
+                    <p className="text-sm font-semibold text-slate-700">Avatar Color Theme</p>
                     {avatarImage && (
                       <button
                         onClick={() => setAvatarImage(null)}
-                        className="text-xs text-slate-400 hover:text-slate-600 underline"
+                        className="text-xs font-medium text-slate-400 hover:text-slate-600 underline"
                       >
                         Remove image
                       </button>
@@ -119,10 +133,10 @@ export function SettingsPage() {
                         key={idx}
                         onClick={() => setAvatarColor(idx)}
                         className={cn(
-                          'relative h-10 w-10 rounded-full bg-gradient-to-br shadow-md transition hover:scale-110',
+                          'relative h-10 w-10 rounded-full bg-gradient-to-br shadow-sm transition hover:scale-110',
                           color.from,
                           color.to,
-                          avatarColor === idx && 'ring-2 ring-slate-900 ring-offset-2'
+                          avatarColor === idx && 'ring-2 ring-slate-900 ring-offset-2 shadow-md'
                         )}
                       >
                         {avatarColor === idx && (
@@ -135,9 +149,9 @@ export function SettingsPage() {
               </div>
             </div>
 
-            {/* Personal Info */}
+            {/* Editable Profile Information */}
             <div className="space-y-4 border-t border-slate-100 pt-6">
-              <h4 className="text-sm font-bold text-slate-700">Personal Information</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Personal Information</h4>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
                   label="First Name"
@@ -154,22 +168,41 @@ export function SettingsPage() {
                   required
                 />
               </div>
+            </div>
 
-              <Input
-                label="Email Address"
-                value={user?.email || ''}
-                disabled
-                leftIcon={<Mail className="h-4 w-4" />}
-                hint="Contact an administrator to change your email"
-              />
-
-              <Input
-                label="Role"
-                value={user?.role || ''}
-                disabled
-                leftIcon={<Shield className="h-4 w-4" />}
-                hint="Your role determines your access permissions"
-              />
+            {/* System Details (Read-only) */}
+            <div className="space-y-4 border-t border-slate-100 pt-6">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">System Identifiers (Read-only)</h4>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  label="Student ID Number"
+                  value={user?.studentId || ''}
+                  disabled
+                  leftIcon={<Hash className="h-4 w-4" />}
+                  hint="Your official university identification."
+                />
+                <Input
+                  label="Email Address"
+                  value={user?.email || ''}
+                  disabled
+                  leftIcon={<Mail className="h-4 w-4" />}
+                  hint="Used for authentication and notifications."
+                />
+                <Input
+                  label="Access Role"
+                  value={roleLabel(user?.role ?? '')}
+                  disabled
+                  leftIcon={<Shield className="h-4 w-4" />}
+                  hint="Determines your system permissions."
+                />
+                <Input
+                  label="Date Joined"
+                  value={formatDate(user?.createdAt)}
+                  disabled
+                  leftIcon={<Calendar className="h-4 w-4" />}
+                  hint="When this account was provisioned."
+                />
+              </div>
             </div>
 
             {/* Actions */}
@@ -179,12 +212,12 @@ export function SettingsPage() {
                   setFirstName(user?.name.first || '');
                   setLastName(user?.name.last || '');
                   setAvatarColor(0);
-                  setAvatarImage(null);
+                  setAvatarImage(user?.avatarUrl || null);
                 }}
                 className="flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-700"
               >
                 <X className="h-4 w-4" />
-                Reset Changes
+                Discard Changes
               </button>
               <Button
                 onClick={() => mutation.mutate({ firstName, lastName, avatarColor, avatarImage })}
@@ -193,7 +226,7 @@ export function SettingsPage() {
                 size="lg"
               >
                 <Check className="h-4 w-4" />
-                Save Changes
+                Save Profile
               </Button>
             </div>
           </CardBody>
