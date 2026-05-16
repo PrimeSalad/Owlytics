@@ -7,6 +7,7 @@ import LoginPage from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { EventsPage } from '@/pages/EventsPage';
 import { AttendancePage } from '@/pages/AttendancePage';
+import { AttendanceSummaryPage } from '@/pages/AttendanceSummaryPage';
 import { ScannerPage } from '@/pages/ScannerPage';
 import { ReportsPage } from '@/pages/ReportsPage';
 import { MembersPage } from '@/pages/MembersPage';
@@ -15,6 +16,7 @@ import { TasksPage } from '@/pages/TasksPage';
 import { TodoPage } from '@/pages/TodoPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { AboutPage } from '@/pages/AboutPage';
+import LogsPage from '@/pages/LogsPage';
 
 
 export default function App() {
@@ -58,11 +60,17 @@ export default function App() {
             {/* Secretary + President */}
             <Route element={<ProtectedRoute roles={['President', 'Secretary', 'Attendance']} />}>
               <Route path="/attendance" element={<AttendancePage />} />
+              <Route path="/attendance/summary" element={<AttendanceSummaryPage />} />
             </Route>
 
             {/* Attendance role only */}
             <Route element={<ProtectedRoute roles={['Attendance']} />}>
               <Route path="/scanner" element={<ScannerPage />} />
+            </Route>
+
+            {/* President only */}
+            <Route element={<ProtectedRoute roles={['President']} />}>
+              <Route path="/logs" element={<LogsPage />} />
             </Route>
           </Route>
         </Route>

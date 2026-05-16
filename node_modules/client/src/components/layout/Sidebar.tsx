@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, ClipboardList,
-  FileText, QrCode, LogOut, ChevronLeft, GraduationCap, ShieldCheck, CheckSquare, ListTodo, Settings, Info,
+  FileText, QrCode, LogOut, ChevronLeft, GraduationCap, ShieldCheck, CheckSquare, ListTodo, Settings, Info, Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
@@ -20,6 +20,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Reports',           to: '/reports',    icon: FileText,        roles: ['President','Secretary','Officer','Committee'] },
   { label: 'Student Directory', to: '/students',   icon: GraduationCap,   roles: ['President','Secretary','Officer'] },
   { label: 'People',            to: '/people',     icon: ShieldCheck,     roles: ['President','Secretary'] },
+  { label: 'System Logs',       to: '/logs',       icon: Activity,        roles: ['President'] },
 ];
 
 interface SidebarProps { collapsed: boolean; onToggle: () => void; }

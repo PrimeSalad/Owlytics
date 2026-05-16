@@ -1,216 +1,208 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, AlertTriangle, CheckCircle2, FileText } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import toast from 'react-hot-toast';
+import { Plus, FileDown, FileText, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { PageWrapper } from '@/components/layout';
-import { Button, Card, CardBody, Modal, Input, StatusBadge, Spinner } from '@/components/ui';
-import { api } from '@/lib/api';
-import { cn } from '@/lib/utils';
-import type { Event, Report } from '@/types';
+import { Button, Spinner } from '@/components/ui';
+import { useAuthStore } from '@/store/authStore';
+import { useReports, useEvents } from '@/features/reports/useReports';
+import { ReportCard } from '@/features/reports/ReportCard';
+import { ReportSubmitModal } from '@/features/reports/ReportSubmitModal';
+import { ReportDetailModal } from '@/features/reports/ReportDetailModal';
+import { CompileReportModal } from '@/features/reports/CompileReportModal';
+import type { Event } from '@/types';
 
-const REPORT_TYPES = ['Update', 'Emergency', 'Accomplishment'] as const;
+const TYPE_FILTERS  = ['', 'Accomplishment', 'Update', 'Emergency'] as const;
+const STATUS_FILTERS = ['', 'Submitted', 'Approved', 'Rejected', 'Draft'] as const;
 
-const reportSchema = z.object({
-  eventId:  z.string().min(1, 'Required'),
-  type:     z.enum(REPORT_TYPES),
-  title:    z.string().min(1, 'Required'),
-  content:  z.string().min(1, 'Required'),
-});
-type ReportForm = z.infer<typeof reportSchema>;
+const STATUS_STATS = [
+  { key: 'Submitted', label: 'Pending',  icon: Clock,         color: 'text-amber-600 bg-amber-50 border-amber-200' },
+  { key: 'Approved',  label: 'Approved', icon: CheckCircle2,  color: 'text-green-600 bg-green-50 border-green-200' },
+  { key: 'Rejected',  label: 'Rejected', icon: XCircle,       color: 'text-red-600 bg-red-50 border-red-200' },
+] as const;
 
 export function ReportsPage() {
-  const qc = useQueryClient();
-  const [typeFilter, setTypeFilter] = useState('');
-  const [submitOpen, setSubmitOpen] = useState(false);
-  const [viewReport, setViewReport] = useState<Report | null>(null);
+  const user = useAuthStore((s) => s.user);
+  const role = user?.role ?? 'Committee';
 
-  const { data: reports = [], isLoading } = useQuery({
-    queryKey: ['reports', typeFilter],
-    queryFn: async () => {
-      const params = typeFilter ? `?type=${typeFilter}` : '';
-      return (await api.get<Report[]>(`/reports${params}`)).data;
-    },
-  });
+  const [typeFilter,   setTypeFilter]   = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [eventFilter,  setEventFilter]  = useState('');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'status'>('newest');
+  const [submitOpen,   setSubmitOpen]   = useState(false);
+  const [compileOpen,  setCompileOpen]  = useState(false);
+  const [activeId,     setActiveId]     = useState<string | null>(null);
 
-  const { data: events = [] } = useQuery({
-    queryKey: ['events'],
-    queryFn: async () => (await api.get<Event[]>('/events')).data,
+  const { data: rawReports = [], isLoading, refetch } = useReports({
+    type:    typeFilter   || undefined,
+    status:  statusFilter || undefined,
+    eventId: eventFilter  || undefined,
   });
+  const STATUS_ORDER: Record<string, number> = { Submitted: 0, Approved: 1, Rejected: 2, Draft: 3 };
+  const reports = [...rawReports].sort((a, b) => {
+    if (sortBy === 'status') return (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+    const diff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    return sortBy === 'newest' ? diff : -diff;
+  });
+  const { data: events = [] } = useEvents();
 
-  const resolveMutation = useMutation({
-    mutationFn: (id: string) => api.patch(`/reports/${id}/resolve`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['reports'] }); toast.success('Report resolved'); },
-  });
+  const canCompile = ['Secretary', 'President'].includes(role);
+  const canReview  = ['Officer', 'Secretary', 'President'].includes(role);
+
+  // Stats
+  const pending  = reports.filter((r) => r.status === 'Submitted').length;
+  const approved = reports.filter((r) => r.status === 'Approved').length;
+  const rejected = reports.filter((r) => r.status === 'Rejected').length;
+  const statData = [
+    { key: 'Submitted', label: 'Pending',  count: pending,  icon: Clock,        color: 'text-amber-600 bg-amber-50 border-amber-200' },
+    { key: 'Approved',  label: 'Approved', count: approved, icon: CheckCircle2, color: 'text-green-600 bg-green-50 border-green-200' },
+    { key: 'Rejected',  label: 'Rejected', count: rejected, icon: XCircle,      color: 'text-red-600 bg-red-50 border-red-200' },
+  ];
 
   return (
     <PageWrapper
       title="Reports"
-      description={`${reports.length} reports`}
-      actions={<Button size="sm" onClick={() => setSubmitOpen(true)}><Plus className="h-4 w-4" />New Report</Button>}
+      description={`${reports.length} report${reports.length !== 1 ? 's' : ''}`}
+      actions={
+        <div className="flex gap-2 flex-wrap justify-end">
+          {canCompile && (
+            <Button size="sm" variant="secondary" onClick={() => setCompileOpen(true)}>
+              <FileDown className="h-4 w-4" /> Compile
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setSubmitOpen(true)}>
+            <Plus className="h-4 w-4" /> <span className="hidden sm:inline">New Report</span><span className="sm:hidden">New</span>
+          </Button>
+        </div>
+      }
     >
-      {/* Type filter */}
-      <div className="flex gap-2 flex-wrap mb-2">
-        {['', ...REPORT_TYPES].map((t) => (
-          <button
-            key={t}
-            onClick={() => setTypeFilter(t)}
-            className={`rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-all duration-200 ${
-              typeFilter === t ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20' : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
-            }`}
+      {/* Stats row — only for reviewers */}
+      {canReview && (
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
+          {statData.map(({ key, label, count, icon: Icon, color }) => (
+            <button
+              key={key}
+              onClick={() => setStatusFilter(statusFilter === key ? '' : key)}
+              className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border transition-all ${
+                statusFilter === key ? color + ' ring-1 ring-current/20' : 'bg-white border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <Icon className={`h-4 w-4 sm:h-5 sm:w-5 shrink-0 ${statusFilter === key ? '' : 'text-slate-400'}`} />
+              <div className="text-left min-w-0">
+                <p className={`text-lg sm:text-xl font-bold leading-none ${statusFilter === key ? '' : 'text-slate-800'}`}>{count}</p>
+                <p className={`text-[9px] sm:text-[10px] font-medium mt-0.5 truncate ${statusFilter === key ? '' : 'text-slate-500'}`}>{label}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:flex-wrap sm:items-center">
+        {/* Type pills */}
+        <div className="flex gap-1.5 flex-wrap">
+          {TYPE_FILTERS.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTypeFilter(t)}
+              className={`rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-all ${
+                typeFilter === t
+                  ? 'bg-brand-500 text-white shadow-sm shadow-brand-500/20'
+                  : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              {t || 'All'}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-2 sm:ml-auto">
+          {/* Sort */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'status')}
+            className="flex-1 sm:flex-none rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs focus:outline-none focus:border-brand-400"
           >
-            {t || 'All Reports'}
-          </button>
-        ))}
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="status">Status</option>
+          </select>
+
+          {/* Event filter */}
+          <select
+            value={eventFilter}
+            onChange={(e) => setEventFilter(e.target.value)}
+            className="flex-1 sm:flex-none rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs focus:outline-none focus:border-brand-400"
+          >
+            <option value="">All Events</option>
+            {events.map((e: Event) => (
+              <option key={e._id} value={e._id}>{e.title}</option>
+            ))}
+          </select>
+
+          {/* Status filter (non-reviewer sees own status) */}
+          {!canReview && (
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="flex-1 sm:flex-none rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs focus:outline-none focus:border-brand-400"
+            >
+              {STATUS_FILTERS.map((s) => (
+                <option key={s} value={s}>{s || 'All Status'}</option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
+      {/* Content */}
       {isLoading ? (
-        <div className="flex justify-center py-20"><Spinner size="lg" /></div>
+        <div className="flex justify-center py-24"><Spinner size="lg" /></div>
       ) : reports.length === 0 ? (
         <div className="py-24 text-center bg-white rounded-2xl border border-slate-200/60 shadow-sm">
           <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
             <FileText className="h-8 w-8 text-slate-300" />
           </div>
-          <h3 className="font-display text-lg font-bold text-slate-800 tracking-tight">No reports found</h3>
-          <p className="mt-1 text-sm text-slate-500">There are no reports matching your filters.</p>
+          <h3 className="font-semibold text-lg text-slate-800">No reports found</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            {typeFilter || statusFilter || eventFilter
+              ? 'Try adjusting your filters.'
+              : 'Submit the first report for this event.'}
+          </p>
+          <Button size="sm" className="mt-4" onClick={() => setSubmitOpen(true)}>
+            <Plus className="h-4 w-4" /> New Report
+          </Button>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {reports.map((r) => (
-            <Card key={r._id} hover onClick={() => setViewReport(r)} className={cn("flex flex-col relative overflow-hidden", r.type === 'Emergency' && !r.isResolved && "border-danger-200 ring-1 ring-danger-100")}>
-              {r.type === 'Emergency' && !r.isResolved && <div className="absolute top-0 left-0 w-1.5 h-full bg-danger-500" />}
-              <CardBody className="flex flex-col justify-between gap-4 p-5 h-full">
-                <div className="flex items-start gap-3 min-w-0">
-                  {r.type === 'Emergency' && !r.isResolved && (
-                    <div className="h-8 w-8 rounded-full bg-danger-50 flex items-center justify-center shrink-0 mt-0.5">
-                      <AlertTriangle className="h-4 w-4 text-danger-600" />
-                    </div>
-                  )}
-                  {r.isResolved && (
-                    <div className="h-8 w-8 rounded-full bg-success-50 flex items-center justify-center shrink-0 mt-0.5">
-                      <CheckCircle2 className="h-4 w-4 text-success-600" />
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                      <StatusBadge status={r.type} />
-                      {r.isResolved && <StatusBadge status="Completed" />}
-                    </div>
-                    <p className="font-display text-base font-bold text-slate-800 tracking-tight truncate">{r.title}</p>
-                    <p className="text-sm text-slate-500 mt-1 line-clamp-2 leading-relaxed">{r.content}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-[9px] font-bold text-slate-500">
-                      {r.authorId.name.first[0]}{r.authorId.name.last[0]}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-600">{r.authorId.name.first} {r.authorId.name.last}</span>
-                      <span className="text-[9px] text-slate-400 uppercase tracking-widest">{new Date(r.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  {r.type === 'Emergency' && !r.isResolved && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="h-7 text-xs px-3 shadow-none border-danger-200 text-danger-700 hover:bg-danger-50"
-                      onClick={(e) => { e.stopPropagation(); resolveMutation.mutate(r._id); }}
-                    >
-                      Resolve
-                    </Button>
-                  )}
-                </div>
-              </CardBody>
-            </Card>
+            <ReportCard
+              key={r.id ?? r._id}
+              report={r}
+              onClick={() => setActiveId(r.id ?? r._id ?? null)}
+            />
           ))}
         </div>
       )}
 
-      <ReportFormModal
+      {/* Modals */}
+      <ReportSubmitModal
         open={submitOpen}
-        events={events}
         onClose={() => setSubmitOpen(false)}
-        onSuccess={() => { qc.invalidateQueries({ queryKey: ['reports'] }); setSubmitOpen(false); }}
+        onSuccess={() => { refetch(); setSubmitOpen(false); }}
       />
 
-      {viewReport && (
-        <Modal open onClose={() => setViewReport(null)} title={viewReport.title} size="lg">
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <StatusBadge status={viewReport.type} />
-              {viewReport.isResolved && <StatusBadge status="Completed" />}
-            </div>
-            <p className="text-sm text-slate-700 whitespace-pre-wrap">{viewReport.content}</p>
-            <p className="text-xs text-slate-400">
-              Submitted by {viewReport.authorId.name.first} {viewReport.authorId.name.last} · {new Date(viewReport.createdAt).toLocaleString()}
-            </p>
-            {viewReport.attachments?.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-2">
-                {viewReport.attachments.map((a, i) => (
-                  <a key={i} href={a.url} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">
-                    Attachment {i + 1}
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-        </Modal>
+      <ReportDetailModal
+        reportId={activeId}
+        userRole={role as any}
+        userId={user?._id ?? ''}
+        onClose={() => setActiveId(null)}
+      />
+
+      {canCompile && (
+        <CompileReportModal
+          open={compileOpen}
+          onClose={() => setCompileOpen(false)}
+        />
       )}
     </PageWrapper>
-  );
-}
-
-function ReportFormModal({ open, events, onClose, onSuccess }: {
-  open: boolean; events: Event[]; onClose: () => void; onSuccess: () => void;
-}) {
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<ReportForm>({
-    resolver: zodResolver(reportSchema),
-    defaultValues: { type: 'Update' },
-  });
-
-  const mutation = useMutation({
-    mutationFn: (v: ReportForm) => api.post('/reports', v),
-    onSuccess: () => { toast.success('Report submitted'); reset(); onSuccess(); },
-    onError: (e: any) => toast.error(e.response?.data?.error ?? 'Failed'),
-  });
-
-  return (
-    <Modal open={open} onClose={() => { reset(); onClose(); }} title="Submit Report" size="lg">
-      <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-        <div>
-          <label className="text-xs font-medium text-slate-600 mb-1.5 block">Event <span className="text-danger">*</span></label>
-          <select {...register('eventId')} className="w-full rounded border border-surface-border bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand-400">
-            <option value="">Select event</option>
-            {events.map((e) => <option key={e._id} value={e._id}>{e.title}</option>)}
-          </select>
-          {errors.eventId && <p className="text-xs text-danger mt-1">{errors.eventId.message}</p>}
-        </div>
-        <div>
-          <label className="text-xs font-medium text-slate-600 mb-1.5 block">Type <span className="text-danger">*</span></label>
-          <select {...register('type')} className="w-full rounded border border-surface-border bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand-400">
-            {REPORT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-        <Input label="Title" required error={errors.title?.message} {...register('title')} />
-        <div>
-          <label className="text-xs font-medium text-slate-600 mb-1.5 block">Content <span className="text-danger">*</span></label>
-          <textarea
-            {...register('content')}
-            rows={5}
-            placeholder="Describe the update, situation, or accomplishment…"
-            className="w-full rounded border border-surface-border bg-white px-3 py-2 text-sm focus:outline-none focus:border-brand-400 resize-none"
-          />
-          {errors.content && <p className="text-xs text-danger mt-1">{errors.content.message}</p>}
-        </div>
-        <div className="flex gap-2 justify-end pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={mutation.isPending}>Submit Report</Button>
-        </div>
-      </form>
-    </Modal>
   );
 }

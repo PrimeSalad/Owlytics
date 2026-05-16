@@ -79,7 +79,7 @@ export function PresidentDashboard() {
 
   const active     = events.filter((e) => e.status === 'Ongoing');
   const completed  = events.filter((e) => e.status === 'Completed');
-  const unresolved = emergencies.filter((r) => !r.isResolved);
+  const unresolved = emergencies.filter((r) => !r.is_resolved);
   const monthlyData = buildMonthlyChart(events);
   const statusData  = buildStatusChart(events);
 
@@ -295,7 +295,7 @@ export function PresidentDashboard() {
                           <Clock className="h-3 w-3" />
                           {new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           <span className="text-slate-300">·</span>
-                          {r.authorId.name.first} {r.authorId.name.last}
+                          {r.authorId?.name?.first} {r.authorId?.name?.last}
                         </div>
                       </li>
                     ))}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Calendar, ChevronDown, Clock, Plus, Search, Users, X } from 'lucide-react';
+import { AlertTriangle, Calendar, ChevronDown, Clock, Plus, Search, Users, X, FileText } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -304,6 +305,13 @@ export function AttendancePage() {
             <Plus className="h-4 w-4" />
             New schedule
           </Button>
+
+          <Link to="/attendance/summary">
+            <Button variant="secondary">
+              <FileText className="h-4 w-4" />
+              View summary
+            </Button>
+          </Link>
         </div>
       }
     >

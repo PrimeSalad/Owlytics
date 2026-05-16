@@ -31,17 +31,17 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
         {/* Panel */}
         <Dialog.Content
           className={cn(
-            'fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2',
-            'rounded-2xl bg-white shadow-2xl p-6 sm:p-8 border border-slate-100 animate-fade-in',
+            'fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2',
+            'rounded-2xl bg-white shadow-2xl p-6 sm:p-8 border border-slate-100 animate-fade-in overflow-hidden',
             sizeMap[size],
             className
           )}
         >
           {/* Header */}
           {(title || description) && (
-            <div className="mb-6">
+            <div className="mb-6 pr-6">
               {title && (
-                <Dialog.Title className="font-display text-xl font-bold text-slate-800 tracking-tight">
+                <Dialog.Title className="font-display text-xl font-bold text-slate-800 tracking-tight break-all">
                   {title}
                 </Dialog.Title>
               )}

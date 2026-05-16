@@ -66,19 +66,46 @@ export interface AttendanceRecord {
   timestamp: string;
 }
 
+export type ReportStatus = 'Draft' | 'Submitted' | 'Approved' | 'Rejected';
+
+export interface ReportAttachment {
+  id: string;
+  url: string;
+  caption?: string;
+  sort_order?: number;
+  file_type: 'image' | 'pdf' | 'document';
+}
+
 export interface Report {
-  _id: string;
-  eventId: string;
-  activityId?: string;
-  authorId: Pick<User, '_id' | 'name' | 'role'>;
+  id: string;
+  /** legacy mongo compat */
+  _id?: string;
+  event_id: string;
+  activity_id?: string;
+  author_id: string;
+  profiles?: { id: string; first_name: string; last_name: string; role: string };
   type: 'Update' | 'Emergency' | 'Accomplishment';
   title: string;
   content: string;
-  attachments: { url: string; publicId: string; fileType: 'image' | 'pdf' | 'document' }[];
-  isResolved: boolean;
-  resolvedBy?: string;
-  resolvedAt?: string;
-  createdAt: string;
+  status: ReportStatus;
+  rejection_note?: string;
+  approved_by?: string;
+  approved_at?: string;
+  report_attachments?: ReportAttachment[];
+  is_resolved?: boolean;
+  resolved_by?: string;
+  resolved_at?: string;
+  created_at: string;
+}
+
+export interface AccomplishmentExport {
+  id: string;
+  event_id: string;
+  exported_by: string;
+  profiles?: { first_name: string; last_name: string };
+  is_final: boolean;
+  section_order: string[];
+  created_at: string;
 }
 
 export interface Sprint {

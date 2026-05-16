@@ -3,7 +3,6 @@ import { supabase } from './supabase';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? '/api',
-  headers: { 'Content-Type': 'application/json' },
 });
 
 // Attach Supabase access token to every request

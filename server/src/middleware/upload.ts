@@ -6,7 +6,7 @@ export const upload = multer({
   fileFilter: (_req, file, cb) => {
     const allowed = ['text/csv', 'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'image/jpeg', 'image/png', 'application/pdf'];
+      'image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
     cb(null, allowed.includes(file.mimetype));
   },
 });

@@ -9,6 +9,6 @@ userRouter.use(requireAuth);
 
 userRouter.get('/', requireRole('President', 'Secretary', 'Officer'), listUsers);
 userRouter.post('/', requireRole('President'), createUser);
-// Only President can manage accounts
-userRouter.patch('/:id', requireRole('President'), updateUser);
+// Any authenticated user can patch themselves, controller handles permissions
+userRouter.patch('/:id', updateUser);
 userRouter.delete('/:id', requireRole('President'), deactivateUser);

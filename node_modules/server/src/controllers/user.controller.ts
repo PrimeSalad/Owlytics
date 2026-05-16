@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
 import { createUserSchema, updateUserSchema } from '../validators/user.validator';
+import { logAction } from '../utils/auditLogger';
 
 export async function listUsers(_req: Request, res: Response) {
   const { data, error } = await supabase
@@ -92,6 +93,8 @@ export async function createUser(req: Request, res: Response) {
     throw new AppError(500, 'Profile was not created. Check your Supabase auth trigger.');
   }
 
+  await logAction(req.user!.userId, 'CREATE', 'USER', `Created new user ${data.name.first} ${data.name.last} (${data.role})`, authData.user.id);
+
   res.status(201).json({ _id: authData.user.id, email: data.email, role: data.role });
 }
 
@@ -99,13 +102,54 @@ export async function updateUser(req: Request, res: Response) {
   const data = updateUserSchema.parse(req.body);
   const userId = req.params.id;
   
-  const updatePayload: Record<string, unknown> = {};
-  if (data.role) updatePayload.role = data.role;
-  if (data.isActive !== undefined) updatePayload.is_active = data.isActive;
+  // Security check: Only President can update others or change roles/status
+  const isSelfUpdate = req.user!.userId === userId;
+  const isPresident = req.user!.role === 'President';
   
+  if (!isSelfUpdate && !isPresident) {
+    throw new AppError(403, 'Insufficient permissions to update this user');
+  }
+
+  const updatePayload: Record<string, unknown> = {};
+  
+  // Only President can update role and isActive
+  if (isPresident) {
+    if (data.role) updatePayload.role = data.role;
+    if (data.isActive !== undefined) updatePayload.is_active = data.isActive;
+  } else {
+    if (data.role || data.isActive !== undefined) {
+      throw new AppError(403, 'You do not have permission to change roles or active status');
+    }
+  }
+
+  // Profile data (can be updated by self or President)
+  if (data.name) {
+    updatePayload.first_name = data.name.first;
+    updatePayload.last_name = data.name.last;
+    
+    // Also update auth user metadata if name changes
+    await supabase.auth.admin.updateUserById(userId as string, {
+      user_metadata: { first_name: data.name.first, last_name: data.name.last }
+    });
+  }
+
+  if (data.avatarImage !== undefined) {
+    updatePayload.avatar_url = data.avatarImage;
+  } else if (data.avatarUrl !== undefined) {
+    updatePayload.avatar_url = data.avatarUrl;
+  }
+  
+  // Need something to update
+  if (Object.keys(updatePayload).length === 0) {
+    return res.json({ message: 'Nothing to update' });
+  }
+
   const { error } = await supabase.from('profiles').update(updatePayload).eq('id', userId);
 
   if (error) throw new AppError(500, error.message);
+  
+  await logAction(req.user!.userId, 'UPDATE', 'USER', `Updated user ID ${userId} profile`, userId as string);
+
   res.json({ message: 'User updated successfully' });
 }
 
@@ -114,5 +158,8 @@ export async function deactivateUser(req: Request, res: Response) {
   await supabase.auth.admin.deleteUser(id);
   const { error } = await supabase.from('profiles').delete().eq('id', id);
   if (error) throw new AppError(500, error.message);
+  
+  await logAction(req.user!.userId, 'DELETE', 'USER', `Deleted user account ID ${id}`, id);
+
   res.json({ message: 'Account deleted' });
 }
