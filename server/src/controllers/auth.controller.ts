@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
 import { loginSchema, changePasswordSchema } from '../validators/auth.validator';
+import { logAction } from '../utils/auditLogger';
 
 export async function login(req: Request, res: Response) {
   const { email, password } = loginSchema.parse(req.body);
@@ -20,6 +21,9 @@ export async function login(req: Request, res: Response) {
 
   // Update last_login
   await supabase.from('profiles').update({ last_login: new Date().toISOString() }).eq('id', data.user.id);
+
+  // Log successful login
+  await logAction(profile.id, 'AUTH', 'USER', `User logged in`, profile.id);
 
   res.json({
     access_token: data.session!.access_token,

@@ -15,6 +15,7 @@ import { reportRouter } from './routes/report.routes';
 import { notificationRouter } from './routes/notification.routes';
 import { taskRouter } from './routes/task.routes';
 import { sprintRouter } from './routes/sprint.routes';
+import { logRouter } from './routes/log.routes';
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/api/reports', reportRouter);
 app.use('/api/notifications', notificationRouter);
 app.use('/api/tasks', taskRouter);
 app.use('/api/sprints', sprintRouter);
+app.use('/api/logs', logRouter);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 

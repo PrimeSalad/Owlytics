@@ -37,6 +37,7 @@ Last checked: 2026-05-11
 - [ ] Add Supabase RLS policies before production
 - [ ] Add auth and RBAC tests
 - [ ] Reconcile `auth.controller.login` with the client, which currently logs in directly through Supabase
+- [ ] Add personalized profile settings and enable editing via the top right corner profile dropdown
 
 ## Student Management
 
@@ -79,6 +80,8 @@ Last checked: 2026-05-11
 - [ ] Implement manual absent marking instead of the current placeholder response
 - [ ] Implement attendance CSV/PDF export
 - [ ] Persist and enforce assigned scanners
+- [ ] Normalize user experience for QR attendance and implement anti-cheating mechanisms for QR codes
+- [ ] Add event attendance summary for sections, explicitly tracking "AM In", "AM Out", "PM In", and "PM Out"
 
 ## Reports And Notifications
 
@@ -92,6 +95,9 @@ Last checked: 2026-05-11
 - [ ] Implement accomplishment PDF generation behind `/api/reports/accomplishment/:eventId`
 - [ ] Add PDF preview/download UI
 - [ ] Persist notifications and add read/unread flows
+- [ ] Implement general notification and chat announcement system functions
+- [ ] Enhance report function, including comprehensive emergency updates
+- [ ] For accomplishment reports, require photo uploads with descriptions, and use Gemini API to automatically compile event summaries
 
 ## Dashboard And Frontend Polish
 
