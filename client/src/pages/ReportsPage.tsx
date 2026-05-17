@@ -13,11 +13,6 @@ import type { Event } from '@/types';
 const TYPE_FILTERS  = ['', 'Accomplishment', 'Update', 'Emergency'] as const;
 const STATUS_FILTERS = ['', 'Submitted', 'Approved', 'Rejected', 'Draft'] as const;
 
-const STATUS_STATS = [
-  { key: 'Submitted', label: 'Pending',  icon: Clock,         color: 'text-amber-600 bg-amber-50 border-amber-200' },
-  { key: 'Approved',  label: 'Approved', icon: CheckCircle2,  color: 'text-green-600 bg-green-50 border-green-200' },
-  { key: 'Rejected',  label: 'Rejected', icon: XCircle,       color: 'text-red-600 bg-red-50 border-red-200' },
-] as const;
 
 export function ReportsPage() {
   const user = useAuthStore((s) => s.user);

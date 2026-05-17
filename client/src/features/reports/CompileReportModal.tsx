@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GripVertical, Download, CheckCircle2, FileText, AlertCircle, User, Calendar } from 'lucide-react';
+import { GripVertical, Download, CheckCircle2, FileText, AlertCircle, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, Button, Spinner } from '@/components/ui';
 import { useCompileReport, useCompileReportWord, useExports, useEvents } from './useReports';
@@ -48,11 +48,6 @@ export function CompileReportModal({ open, onClose }: Props) {
   // Pre-fill academic year from current date
   useEffect(() => {
     if (!academicYear) {
-      const now = new Date();
-      const y = now.getFullYear();
-      // Academic year: Aug–Jul cycle
-      // If we are in 2026, start is 2026
-      const start = now.getMonth() >= 7 ? y : y - 1;
       setAcademicYear('2026 – 2027');
     }
   }, []);
@@ -173,7 +168,7 @@ export function CompileReportModal({ open, onClose }: Props) {
     <Modal open={open} onClose={handleClose} title="Compile Accomplishment Report" size="xl">
       {/* Step indicator */}
       <div className="flex items-center gap-1.5 mb-6">
-        {STEPS.map((label, i) => (
+        {STEPS.map((_, i) => (
           <div key={i} className="flex items-center gap-1.5">
             <button
               onClick={() => { if (i < step) setStep(i); }}

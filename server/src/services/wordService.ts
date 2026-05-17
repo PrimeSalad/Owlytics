@@ -1,4 +1,5 @@
 import PizZip from 'pizzip';
+// @ts-ignore
 import Docxtemplater from 'docxtemplater';
 // @ts-ignore
 import ImageModule from 'docxtemplater-image-module-free';

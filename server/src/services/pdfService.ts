@@ -125,7 +125,7 @@ export async function generateAccomplishmentPDF(opts: CompileOptions): Promise<B
         y += 16;
 
         // Content
-        const contentHeight = doc.heightOfString(report.content, { width: W, fontSize: 10 });
+        const contentHeight = doc.fontSize(10).heightOfString(report.content, { width: W });
         if (y + contentHeight > doc.page.height - 80) { doc.addPage(); y = 60; }
         doc.fillColor('#334155').font('Helvetica').fontSize(10)
            .text(report.content, 60, y, { width: W, align: 'justify' });

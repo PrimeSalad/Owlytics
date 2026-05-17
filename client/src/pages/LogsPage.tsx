@@ -119,6 +119,9 @@ export default function LogsPage() {
       case 'ATTENDANCE':
         navigate(`/attendance`);
         break;
+      case 'REPORT':
+        navigate(`/reports`);
+        break;
       default:
         // Do nothing if resource is unmapped
         break;

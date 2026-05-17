@@ -123,7 +123,7 @@ export async function approveReport(req: Request, res: Response) {
     .eq('id', req.params.id);
   if (error) throw new AppError(400, error.message);
 
-  await logAction(req.user!.userId, 'UPDATE', 'REPORT', `Approved report ID: ${req.params.id}`, req.params.id);
+  await logAction(req.user!.userId, 'UPDATE', 'REPORT', `Approved report ID: ${req.params.id}`, req.params.id as string);
 
   // Notify author
   const { data: report } = await supabase.from('reports').select('author_id').eq('id', req.params.id).single();
@@ -142,7 +142,7 @@ export async function rejectReport(req: Request, res: Response) {
     .eq('id', req.params.id);
   if (error) throw new AppError(400, error.message);
 
-  await logAction(req.user!.userId, 'UPDATE', 'REPORT', `Rejected report ID: ${req.params.id}`, req.params.id);
+  await logAction(req.user!.userId, 'UPDATE', 'REPORT', `Rejected report ID: ${req.params.id}`, req.params.id as string);
 
   const { data: report } = await supabase.from('reports').select('author_id').eq('id', req.params.id).single();
   if (report) req.app.locals.io?.to(`user:${report.author_id}`).emit('report:rejected', { reportId: req.params.id, note: rejectionNote });
@@ -158,7 +158,7 @@ export async function resolveReport(req: Request, res: Response) {
     .update({ is_resolved: true, resolved_by: req.user!.userId, resolved_at: new Date().toISOString() })
     .eq('id', req.params.id);
   if (error) throw new AppError(400, error.message);
-  await logAction(req.user!.userId, 'UPDATE', 'REPORT', `Resolved emergency report ID: ${req.params.id}`, req.params.id);
+  await logAction(req.user!.userId, 'UPDATE', 'REPORT', `Resolved emergency report ID: ${req.params.id}`, req.params.id as string);
   res.json({ message: 'Report resolved' });
 }
 
@@ -268,7 +268,7 @@ export async function compileAccomplishment(req: Request, res: Response) {
     section_order: sectionOrder ?? [],
   });
 
-  await logAction(req.user!.userId, 'CREATE', 'REPORT', `Compiled accomplishment PDF for event ID: ${eventId}${isFinal ? ' (Final)' : ''}`, eventId);
+  await logAction(req.user!.userId, 'CREATE', 'REPORT', `Compiled accomplishment PDF for event ID: ${eventId}${isFinal ? ' (Final)' : ''}`, eventId as string);
 
   // Notify
   req.app.locals.io?.to('role:President').to('role:Secretary')
@@ -336,7 +336,7 @@ export async function compileAccomplishmentWord(req: Request, res: Response) {
   });
 
 
-  await logAction(req.user!.userId, 'CREATE', 'REPORT', `Compiled accomplishment Word for event ID: ${eventId}${isFinal ? ' (Final)' : ''}`, eventId);
+  await logAction(req.user!.userId, 'CREATE', 'REPORT', `Compiled accomplishment Word for event ID: ${eventId}${isFinal ? ' (Final)' : ''}`, eventId as string);
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   res.setHeader('Content-Disposition', `attachment; filename="accomplishment-${eventId}.docx"`);
@@ -391,6 +391,6 @@ export async function deleteReport(req: Request, res: Response) {
     console.error('[deleteReport] DB error:', error.message);
     throw new AppError(400, error.message);
   }
-  await logAction(req.user!.userId, 'DELETE', 'REPORT', `Deleted report ID: ${req.params.id}`, req.params.id);
+  await logAction(req.user!.userId, 'DELETE', 'REPORT', `Deleted report ID: ${req.params.id}`, req.params.id as string);
   res.json({ message: 'Report deleted' });
 }
