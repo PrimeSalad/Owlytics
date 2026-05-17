@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, XCircle, AlertTriangle, ChevronLeft, ChevronRight, X, Trash2, ZoomIn } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, ChevronLeft, ChevronRight, X, Trash2, ZoomIn, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, Button } from '@/components/ui';
 import { useReport, useApproveReport, useRejectReport, useResolveReport, useDeleteReport } from './useReports';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types';
+import { api } from '@/lib/api';
 
 interface Props {
   reportId: string | null;
@@ -25,18 +26,40 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
   const [showReject,  setShowReject]  = useState(false);
   const [confirmDel,  setConfirmDel]  = useState(false);
   const [lightbox,    setLightbox]    = useState<number | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     setRejectNote('');
     setShowReject(false);
     setConfirmDel(false);
     setLightbox(null);
+    setIsExporting(false);
   }, [reportId]);
 
   const canReview = ['Officer', 'Secretary', 'President'].includes(userRole);
   const images    = report?.report_attachments ?? [];
   const isOwner   = report?.author_id === userId;
   const canDelete = isOwner || ['President', 'Secretary'].includes(userRole);
+
+  async function handleExportPDF() {
+    if (!reportId) return;
+    setIsExporting(true);
+    try {
+      const res = await api.get(`/reports/${reportId}/export-pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `report-${reportId.substring(0, 8)}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Export downloaded');
+    } catch {
+      toast.error('Failed to export PDF');
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   async function handleApprove() {
     if (!reportId) return;
@@ -130,7 +153,7 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
             )}
 
             {/* Bottom action bar */}
-            {(canReview || canDelete) && (
+            {(canReview || canDelete || report.status === 'Approved') && (
               <div className="pt-3 border-t border-slate-100">
                 {/* Reject textarea */}
                 {showReject && (
@@ -168,6 +191,11 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
                   )}
 
                   <div className="flex gap-2 ml-auto flex-wrap justify-end">
+                    {report.status === 'Approved' && (
+                      <Button variant="secondary" size="sm" loading={isExporting} onClick={handleExportPDF}>
+                        <Download className="h-4 w-4" /> Export PDF
+                      </Button>
+                    )}
                     {canReview && report.type === 'Emergency' && !report.is_resolved && (
                       <Button variant="secondary" size="sm" loading={resolve.isPending} onClick={handleResolve}
                         className="border-orange-200 text-orange-700 hover:bg-orange-50">

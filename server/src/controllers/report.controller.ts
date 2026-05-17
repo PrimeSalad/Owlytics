@@ -2,7 +2,26 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
 import { createReportSchema, rejectReportSchema, compileReportSchema } from '../validators/report.validator';
-import { generateAccomplishmentPDF } from '../services/pdfService';
+import { generateAccomplishmentPDF, generateSingleReportPDF } from '../services/pdfService';
+
+export async function exportSingleReport(req: Request, res: Response) {
+  const { data: report, error } = await supabase
+    .from('reports')
+    .select('*, profiles!author_id(first_name, last_name, role), report_attachments(id, url, caption, sort_order, file_type), events!inner(title)')
+    .eq('id', req.params.id)
+    .single();
+
+  if (error || !report) throw new AppError(404, 'Report not found');
+  if (report.status !== 'Approved') throw new AppError(400, 'Only approved reports can be exported');
+
+  const pdfBuffer = await generateSingleReportPDF(report, report.events);
+
+  await logAction(req.user!.userId, 'CREATE', 'REPORT', `Exported approved report ID: ${report.id}`, report.id as string);
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="report-${report.id.substring(0, 8)}.pdf"`);
+  res.send(pdfBuffer);
+}
 import { generateAccomplishmentWord } from '../services/wordService';
 import { logAction } from '../utils/auditLogger';
 
@@ -95,6 +114,22 @@ export async function createReport(req: Request, res: Response) {
   // Notify via socket
   if (body.type === 'Emergency') {
     req.app.locals.io?.to('role:President').emit('report:emergency', { reportId: report.id, title: report.title });
+    
+    // Create DB notifications for Emergency
+    const { data: pres } = await supabase.from('profiles').select('id').eq('role', 'President').eq('is_active', true);
+    const { data: sec } = await supabase.from('profiles').select('id').eq('role', 'Secretary').eq('is_active', true);
+    const recipients = [...(pres || []), ...(sec || [])].map(r => r.id);
+    if (recipients.length > 0) {
+      await supabase.from('notifications').insert(
+        recipients.map(rId => ({
+          recipient_id: rId,
+          type: 'Report',
+          title: 'Emergency Report',
+          message: `An emergency report "${body.title}" was submitted.`,
+          related_id: report.id,
+        }))
+      );
+    }
   }
   req.app.locals.io?.to('role:Officer').to('role:Secretary').to('role:President')
     .emit('report:new', { reportId: report.id, type: body.type });
@@ -126,8 +161,17 @@ export async function approveReport(req: Request, res: Response) {
   await logAction(req.user!.userId, 'UPDATE', 'REPORT', `Approved report ID: ${req.params.id}`, req.params.id as string);
 
   // Notify author
-  const { data: report } = await supabase.from('reports').select('author_id').eq('id', req.params.id).single();
-  if (report) req.app.locals.io?.to(`user:${report.author_id}`).emit('report:approved', { reportId: req.params.id });
+  const { data: report } = await supabase.from('reports').select('author_id, title').eq('id', req.params.id).single();
+  if (report) {
+    req.app.locals.io?.to(`user:${report.author_id}`).emit('report:approved', { reportId: req.params.id });
+    await supabase.from('notifications').insert({
+      recipient_id: report.author_id,
+      type: 'Report',
+      title: 'Report Approved',
+      message: `Your report "${report.title}" was approved.`,
+      related_id: req.params.id,
+    });
+  }
 
   res.json({ message: 'Report approved' });
 }

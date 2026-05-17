@@ -47,6 +47,74 @@ function fetchImageBuffer(url: string): Promise<Buffer> {
   });
 }
 
+export async function generateSingleReportPDF(report: any, event?: any): Promise<Buffer> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const buffers: Buffer[] = [];
+      doc.on('data', (b) => buffers.push(b));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      const W = doc.page.width - 100;
+      doc.font('Helvetica-Bold').fontSize(16).text(report.title, { width: W, align: 'center' });
+      doc.moveDown(0.5);
+
+      if (event) {
+        doc.font('Helvetica').fontSize(10).text(`Event: ${event.title}`, { width: W, align: 'center' });
+        doc.moveDown(1);
+      }
+
+      doc.font('Helvetica-Bold').fontSize(12).text('Report Details');
+      doc.moveDown(0.5);
+      doc.font('Helvetica').fontSize(10).text(report.content, { width: W, align: 'justify' });
+      doc.moveDown(1.5);
+
+      doc.font('Helvetica-Bold').fontSize(10).text(`Prepared by: ${report.profiles?.first_name} ${report.profiles?.last_name}`);
+      doc.font('Helvetica').fontSize(10).text(`Date: ${new Date(report.created_at).toLocaleDateString()}`);
+      doc.moveDown(1.5);
+
+      const images = [...(report.report_attachments || [])]
+        .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        .filter((a: any) => a.url);
+
+      if (images.length > 0) {
+        doc.font('Helvetica-Bold').fontSize(12).text('Attachments');
+        doc.moveDown(0.5);
+        const colW = (W - 16) / 2;
+        let x = 50;
+        let y = doc.y;
+
+        for (let i = 0; i < images.length; i++) {
+          const isRight = i % 2 !== 0;
+          x = isRight ? 50 + colW + 16 : 50;
+          if (!isRight && i > 0) { y += 160; doc.y = y; }
+          
+          if (y + 150 > doc.page.height - 50) {
+            doc.addPage();
+            y = 50;
+            x = isRight ? 50 + colW + 16 : 50;
+          }
+
+          try {
+            const buf = await fetchImageBuffer(images[i].url);
+            doc.image(buf, x, y, { fit: [colW, 120], align: 'center', valign: 'center' });
+            if (images[i].caption) {
+              doc.font('Helvetica').fontSize(8).text(images[i].caption, x, y + 125, { width: colW, align: 'center' });
+            }
+          } catch (err) {
+            doc.font('Helvetica-Oblique').fontSize(8).text('[Image unavailable]', x, y + 50, { width: colW, align: 'center' });
+          }
+        }
+      }
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 export async function generateAccomplishmentPDF(opts: CompileOptions): Promise<Buffer> {
   return new Promise(async (resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 60, autoFirstPage: true });

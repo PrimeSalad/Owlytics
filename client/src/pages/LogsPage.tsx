@@ -105,7 +105,15 @@ export default function LogsPage() {
   };
   
   const handleView = (log: SystemLog) => {
-    if (!log.target_id) return;
+    if (!log.target_id) {
+      toast.error('No specific item associated with this log.');
+      return;
+    }
+
+    if (log.action_type === 'DELETE') {
+      toast.error('This item has already been deleted and cannot be viewed.');
+      return;
+    }
     
     switch (log.resource) {
       case 'TASK':
@@ -124,6 +132,7 @@ export default function LogsPage() {
         navigate(`/reports?reportId=${log.target_id}`);
         break;
       default:
+        toast.error('Navigation not supported for this resource type.');
         break;
     }
   };
@@ -244,20 +253,6 @@ export default function LogsPage() {
                               View
                             </button>
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardBody>
-        </Card>
-      </div>
-    </PageWrapper>
-  );
-}
-}
                         </td>
                       </tr>
                     ))}

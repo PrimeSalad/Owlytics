@@ -7,6 +7,7 @@ export interface User {
   email: string;
   role: UserRole;
   avatarUrl?: string;
+  avatarColor?: number;
   assignedSection?: string | null;
   isActive: boolean;
   lastLogin?: string;
