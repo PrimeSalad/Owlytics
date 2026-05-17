@@ -39,6 +39,14 @@ export function EventsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addActivityFor, setAddActivityFor] = useState<string | null>(null);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const eventId = params.get('eventId');
+    if (eventId) {
+      setExpandedId(eventId);
+    }
+  }, []);
+
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['events', statusFilter],
     queryFn: async () => {
@@ -297,12 +305,3 @@ function ActivityFormModal({ open, eventId, onClose, onSuccess }: { open: boolea
     </Modal>
   );
 }
-
-nt="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={mutation.isPending}>Add Activity</Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
