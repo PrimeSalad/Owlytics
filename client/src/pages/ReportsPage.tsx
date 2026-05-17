@@ -26,6 +26,14 @@ export function ReportsPage() {
   const [compileOpen,  setCompileOpen]  = useState(false);
   const [activeId,     setActiveId]     = useState<string | null>(null);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reportId = params.get('reportId');
+    if (reportId) {
+      setActiveId(reportId);
+    }
+  }, []);
+
   const { data: rawReports = [], isLoading, refetch } = useReports({
     type:    typeFilter   || undefined,
     status:  statusFilter || undefined,

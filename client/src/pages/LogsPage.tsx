@@ -108,22 +108,21 @@ export default function LogsPage() {
     
     switch (log.resource) {
       case 'TASK':
-        navigate(`/tasks?taskId=${log.target_id}`); // Assuming tasks page can handle ?taskId=
+        navigate(`/tasks?taskId=${log.target_id}`);
         break;
       case 'USER':
-        navigate(`/people`); // Or /students depending on context
+        navigate(`/people`); // Students page might need studentId, but let's leave it for now or add ?studentId
         break;
       case 'EVENT':
-        navigate(`/events`); // Assuming /events handles context
+        navigate(`/events?eventId=${log.target_id}`);
         break;
       case 'ATTENDANCE':
-        navigate(`/attendance`);
+        navigate(`/attendance`); // Attendance handles by event, so it might need eventId
         break;
       case 'REPORT':
-        navigate(`/reports`);
+        navigate(`/reports?reportId=${log.target_id}`);
         break;
       default:
-        // Do nothing if resource is unmapped
         break;
     }
   };

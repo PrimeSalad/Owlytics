@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, CalendarDays, MapPin, Clock } from 'lucide-react';
 
@@ -291,6 +291,14 @@ function ActivityFormModal({ open, eventId, onClose, onSuccess }: { open: boolea
         </div>
         <div className="flex gap-2 justify-end pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" loading={mutation.isPending}>Add Activity</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+nt="secondary" onClick={onClose}>Cancel</Button>
           <Button type="submit" loading={mutation.isPending}>Add Activity</Button>
         </div>
       </form>
