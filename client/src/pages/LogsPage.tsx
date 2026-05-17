@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { PageWrapper } from '@/components/layout';
 import { Card, CardBody, Spinner } from '@/components/ui';
@@ -243,6 +244,20 @@ export default function LogsPage() {
                               View
                             </button>
                           )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      </div>
+    </PageWrapper>
+  );
+}
+}
                         </td>
                       </tr>
                     ))}
