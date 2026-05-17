@@ -2,7 +2,10 @@
   "name": "student-monitoring-system",
   "private": true,
   "packageManager": "npm@10.8.3",
-  "workspaces": ["client", "server"],
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -10,9 +13,11 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,css,md}\""
   },
   "devDependencies": {
-    "turbo": "^2.3.3",
+    "@eslint/js": "^9.39.4",
+    "eslint": "^9.18.0",
     "prettier": "^3.4.2",
-    "eslint": "^9.18.0"
+    "turbo": "^2.3.3",
+    "typescript-eslint": "^8.59.3"
   },
   "engines": {
     "node": ">=20.0.0"
