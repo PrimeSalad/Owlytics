@@ -38,6 +38,86 @@ async function uploadImage(buffer: Buffer, mimetype: string, reportId: string, i
   return { url: data.publicUrl, path };
 }
 
+async function fetchCompilationData(ids: string[], sectionOrder?: string[]) {
+  // Fetch events
+  const { data: events, error: evErr } = await supabase
+    .from('events')
+    .select('id, title, start_date, end_date')
+    .in('id', ids);
+  if (evErr || !events?.length) throw new AppError(404, 'Events not found');
+
+  const allTitles = events.map(e => e.title).join(', ');
+  const minStart  = events.reduce((m, e) => !m || new Date(e.start_date) < new Date(m) ? e.start_date : m, '');
+  const maxEnd    = events.reduce((m, e) => !m || new Date(e.end_date) > new Date(m) ? e.end_date : m, '');
+
+  // Fetch approved accomplishment reports with attachments
+  const { data: reports, error: rErr } = await supabase
+    .from('reports')
+    .select('*, profiles!author_id(first_name, last_name), report_attachments(url, caption, sort_order)')
+    .in('event_id', ids)
+    .eq('type', 'Accomplishment')
+    .eq('status', 'Approved');
+  if (rErr) throw new AppError(500, rErr.message);
+  if (!reports?.length) throw new AppError(400, 'No approved accomplishment reports for selected events');
+
+  // Fetch activities for these events
+  const { data: activities } = await supabase
+    .from('activities')
+    .select('id, name, description, start_time, end_time')
+    .in('event_id', ids);
+
+  // Group reports by activity
+  const activityMap = new Map<string | null, typeof reports>(); 
+  for (const r of reports) {
+    const key = r.activity_id ?? null;
+    if (!activityMap.has(key)) activityMap.set(key, []);
+    activityMap.get(key)!.push(r);
+  }
+
+  // Build ordered sections
+  let orderedActivities = activities ?? [];
+  if (sectionOrder?.length) {
+    orderedActivities = sectionOrder
+      .map((id) => orderedActivities.find((a) => a.id === id))
+      .filter(Boolean) as typeof orderedActivities;
+  }
+
+  // Include unassigned reports as a catch-all section
+  const sections = [
+    ...orderedActivities
+      .filter((a) => activityMap.has(a.id))
+      .map((a) => ({
+        name:        a.name,
+        description: a.description,
+        start_time:  a.start_time,
+        end_time:    a.end_time,
+        reports:     (activityMap.get(a.id) ?? []).map((r) => ({
+          title:       r.title,
+          content:     r.content,
+          author:      `${r.profiles.first_name} ${r.profiles.last_name}`,
+          attachments: r.report_attachments ?? [],
+          objective:   r.objective ?? '',
+          duration:    r.duration  ?? '',
+          remarks:     r.remarks   ?? '',
+        })),
+      })),
+    ...(activityMap.has(null) ? [{
+      name:    'General Reports',
+      reports: (activityMap.get(null) ?? []).map((r) => ({
+        title:       r.title,
+        content:     r.content,
+        author:      `${r.profiles.first_name} ${r.profiles.last_name}`,
+        attachments: r.report_attachments ?? [],
+        objective:   r.objective ?? '',
+        duration:    r.duration  ?? '',
+        remarks:     r.remarks   ?? '',
+      })),
+    }] : []),
+  ];
+
+  return { allTitles, minStart, maxEnd, sections };
+}
+
 // ── list ──────────────────────────────────────────────────────────────────────
 
 export async function listReports(req: Request, res: Response) {
@@ -247,91 +327,12 @@ export async function compileAccomplishment(req: Request, res: Response) {
   const ids = bodyEventIds?.length ? bodyEventIds : [eventId];
   if (!ids.length || !ids[0]) throw new AppError(400, 'No event IDs provided');
 
-  // Fetch events
-  const { data: events, error: evErr } = await supabase
-    .from('events')
-    .select('id, title, start_date, end_date')
-    .in('id', ids);
-  if (evErr || !events?.length) throw new AppError(404, 'Events not found');
-
-  const mainEvent = events[0];
-  const allTitles = events.map(e => e.title).join(', ');
-  const minStart  = events.reduce((m, e) => !m || new Date(e.start_date) < new Date(m) ? e.start_date : m, '');
-  const maxEnd    = events.reduce((m, e) => !m || new Date(e.end_date) > new Date(m) ? e.end_date : m, '');
-
-  // Fetch approved accomplishment reports with attachments
-  const { data: reports, error: rErr } = await supabase
-    .from('reports')
-    .select('*, profiles!author_id(first_name, last_name), report_attachments(url, caption, sort_order)')
-    .in('event_id', ids)
-    .eq('type', 'Accomplishment')
-    .eq('status', 'Approved');
-  if (rErr) throw new AppError(500, rErr.message);
-  if (!reports?.length) throw new AppError(400, 'No approved accomplishment reports for selected events');
-
-  // Fetch activities for these events
-  const { data: activities } = await supabase
-    .from('activities')
-    .select('id, name, description, start_time, end_time')
-    .in('event_id', ids);
-
-  // Group reports by activity
-  const activityMap = new Map<string | null, typeof reports>(); 
-  for (const r of reports) {
-    const key = r.activity_id ?? null;
-    if (!activityMap.has(key)) activityMap.set(key, []);
-    activityMap.get(key)!.push(r);
-  }
-
-  // Build ordered sections
-  let orderedActivities = activities ?? [];
-  if (sectionOrder?.length) {
-    orderedActivities = sectionOrder
-      .map((id) => orderedActivities.find((a) => a.id === id))
-      .filter(Boolean) as typeof orderedActivities;
-  }
-
-  // Include unassigned reports as a catch-all section
-  const sections = [
-    ...orderedActivities
-      .filter((a) => activityMap.has(a.id))
-      .map((a) => ({
-        name:        a.name,
-        description: a.description,
-        start_time:  a.start_time,
-        end_time:    a.end_time,
-        reports:     (activityMap.get(a.id) ?? []).map((r) => ({
-          title:       r.title,
-          content:     r.content,
-          author:      `${r.profiles.first_name} ${r.profiles.last_name}`,
-          attachments: r.report_attachments ?? [],
-          objective:   r.objective ?? '',
-          duration:    r.duration  ?? '',
-          remarks:     r.remarks   ?? '',
-        })),
-      })),
-    ...(activityMap.has(null) ? [{
-      name:    'General Reports',
-      reports: (activityMap.get(null) ?? []).map((r) => ({
-        title:       r.title,
-        content:     r.content,
-        author:      `${r.profiles.first_name} ${r.profiles.last_name}`,
-        attachments: r.report_attachments ?? [],
-        objective:   r.objective ?? '',
-        duration:    r.duration  ?? '',
-        remarks:     r.remarks   ?? '',
-      })),
-    }] : []),
-  ];
+  const { allTitles, minStart, maxEnd, sections } = await fetchCompilationData(ids, sectionOrder);
 
   // Get preparedBy name from profile if not provided
   let prepBy = preparedBy;
   if (!prepBy) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('first_name, last_name')
-      .eq('id', req.user!.userId)
-      .single();
+    const { data: profile } = await supabase.from('profiles').select('first_name, last_name').eq('id', req.user!.userId).single();
     prepBy = profile ? `${profile.first_name} ${profile.last_name}` : req.user!.userId;
   }
 
@@ -341,17 +342,13 @@ export async function compileAccomplishment(req: Request, res: Response) {
     preparedBy:     prepBy,
     presidentName,
     secretaryName,
-    academicYear,
+    academicYear:   academicYear || `${new Date(minStart).getFullYear()} – ${new Date(maxEnd).getFullYear()}`,
     activities:     sections,
     isFinal:        isFinal ?? false,
     orgName:        orgName || 'Student Organization',
   });
 
-
-  // Save export record for EACH event or just the first one? 
-  // For now, let's link it to the first event if multiple, but maybe we need a way to link to multiple.
-  // The accomplishment_exports table might need an update if we want to track multi-event exports properly.
-  // For now, I'll just use the first ID for the export record.
+  // Save export record linked to the first event
   await supabase.from('accomplishment_exports').insert({
     event_id:     ids[0], 
     exported_by:  req.user!.userId,
@@ -359,14 +356,16 @@ export async function compileAccomplishment(req: Request, res: Response) {
     section_order: sectionOrder ?? [],
   });
 
-  await logAction(req.user!.userId, 'CREATE', 'REPORT', `Compiled multi-event accomplishment PDF for events: ${allTitles}${isFinal ? ' (Final)' : ''}`, ids[0]);
+  const logMsg = ids.length > 1 
+    ? `Compiled multi-event accomplishment PDF for: ${allTitles}`
+    : `Compiled accomplishment PDF for: ${allTitles}`;
 
-  // Notify
-  req.app.locals.io?.to('role:President').to('role:Secretary')
-    .emit('report:compiled', { eventId: ids[0], isFinal });
+  await logAction(req.user!.userId, 'CREATE', 'REPORT', logMsg + (isFinal ? ' (Final)' : ''), ids[0]);
+
+  req.app.locals.io?.to('role:President').to('role:Secretary').emit('report:compiled', { eventId: ids[0], isFinal });
 
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="accomplishment-combined.pdf"`);
+  res.setHeader('Content-Disposition', `attachment; filename="accomplishment-${ids.length > 1 ? 'combined' : ids[0]}.pdf"`);
   res.send(pdfBuffer);
 }
 
@@ -379,55 +378,7 @@ export async function compileAccomplishmentWord(req: Request, res: Response) {
   const ids = bodyEventIds?.length ? bodyEventIds : [eventId];
   if (!ids.length || !ids[0]) throw new AppError(400, 'No event IDs provided');
 
-  // Fetch events
-  const { data: events, error: evErr } = await supabase
-    .from('events')
-    .select('id, title, start_date, end_date')
-    .in('id', ids);
-  if (evErr || !events?.length) throw new AppError(404, 'Events not found');
-
-  const allTitles = events.map(e => e.title).join(', ');
-  const minStart  = events.reduce((m, e) => !m || new Date(e.start_date) < new Date(m) ? e.start_date : m, '');
-  const maxEnd    = events.reduce((m, e) => !m || new Date(e.end_date) > new Date(m) ? e.end_date : m, '');
-
-  const { data: reports, error: rErr } = await supabase
-    .from('reports')
-    .select('*, profiles!author_id(first_name, last_name), report_attachments(url, caption, sort_order)')
-    .in('event_id', ids).eq('type', 'Accomplishment').eq('status', 'Approved');
-  if (rErr) throw new AppError(500, rErr.message);
-  if (!reports?.length) throw new AppError(400, 'No approved accomplishment reports for selected events');
-
-  const { data: activities } = await supabase.from('activities').select('id, name, description, start_time, end_time').in('event_id', ids);
-
-  const activityMap = new Map<string | null, typeof reports>();
-  for (const r of reports) {
-    const key = r.activity_id ?? null;
-    if (!activityMap.has(key)) activityMap.set(key, []);
-    activityMap.get(key)!.push(r);
-  }
-
-  let orderedActivities = activities ?? [];
-  if (sectionOrder?.length) {
-    orderedActivities = sectionOrder.map((id) => orderedActivities.find((a) => a.id === id)).filter(Boolean) as typeof orderedActivities;
-  }
-
-  const sections = [
-    ...orderedActivities.filter((a) => activityMap.has(a.id)).map((a) => ({
-      name: a.name, description: a.description, start_time: a.start_time, end_time: a.end_time,
-      reports: (activityMap.get(a.id) ?? []).map((r) => ({
-        title: r.title, content: r.content,
-        author: `${r.profiles.first_name} ${r.profiles.last_name}`,
-        attachments: r.report_attachments ?? [],
-        objective: r.objective ?? '', duration: r.duration ?? '', remarks: r.remarks ?? '',
-      })),
-    })),
-    ...(activityMap.has(null) ? [{ name: 'General Reports', reports: (activityMap.get(null) ?? []).map((r) => ({
-      title: r.title, content: r.content,
-      author: `${r.profiles.first_name} ${r.profiles.last_name}`,
-      attachments: r.report_attachments ?? [],
-      objective: r.objective ?? '', duration: r.duration ?? '', remarks: r.remarks ?? '',
-    })) }] : []),
-  ];
+  const { allTitles, minStart, maxEnd, sections } = await fetchCompilationData(ids, sectionOrder);
 
   let prepBy = preparedBy;
   if (!prepBy) {
@@ -447,11 +398,14 @@ export async function compileAccomplishmentWord(req: Request, res: Response) {
     orgName: orgName || 'Student Organization'
   });
 
+  const logMsg = ids.length > 1 
+    ? `Compiled multi-event accomplishment Word for: ${allTitles}`
+    : `Compiled accomplishment Word for: ${allTitles}`;
 
-  await logAction(req.user!.userId, 'CREATE', 'REPORT', `Compiled multi-event accomplishment Word for events: ${allTitles}${isFinal ? ' (Final)' : ''}`, ids[0]);
+  await logAction(req.user!.userId, 'CREATE', 'REPORT', logMsg + (isFinal ? ' (Final)' : ''), ids[0]);
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-  res.setHeader('Content-Disposition', `attachment; filename="accomplishment-combined.docx"`);
+  res.setHeader('Content-Disposition', `attachment; filename="accomplishment-${ids.length > 1 ? 'combined' : ids[0]}.docx"`);
   res.send(wordBuffer);
 }
 

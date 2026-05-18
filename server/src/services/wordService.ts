@@ -150,6 +150,7 @@ export async function generateAccomplishmentWord(opts: CompileOptions): Promise<
     empty(AlignmentType.CENTER),                                                          // P8
     p([run('ACCOMPLISHMENT REPORT', { bold: true, size: 28 })], AlignmentType.CENTER),   // P9
     p([run(`A.Y. ${ay}`, { bold: true, size: 28 })], AlignmentType.CENTER),              // P10
+    !opts.isFinal ? p([run('(DRAFT)', { bold: true, size: 20, italic: true })], AlignmentType.CENTER) : empty(), // Added Draft indicator
     empty(AlignmentType.CENTER),                                                          // P11
     empty(AlignmentType.CENTER),                                                          // P12
     empty(AlignmentType.CENTER),                                                          // P13
@@ -176,7 +177,10 @@ export async function generateAccomplishmentWord(opts: CompileOptions): Promise<
   main.push(empty(AlignmentType.CENTER));
 
   // P28–P29: ACCOMPLISHMENT REPORT + A.Y (bold TNR, normal size — no sz override)
-  main.push(p([run('ACCOMPLISHMENT REPORT', { bold: true })], AlignmentType.CENTER));
+  main.push(p([
+    run('ACCOMPLISHMENT REPORT', { bold: true }),
+    ...(!opts.isFinal ? [run(' (DRAFT)', { bold: true, italic: true })] : []),
+  ], AlignmentType.CENTER));
   main.push(p([run(`A.Y ${ay}`, { bold: true })], AlignmentType.CENTER));
 
   // T30: Summary table
