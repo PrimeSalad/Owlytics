@@ -155,11 +155,35 @@ export async function updateUser(req: Request, res: Response) {
 
 export async function deactivateUser(req: Request, res: Response) {
   const id = req.params.id as string;
-  await supabase.auth.admin.deleteUser(id);
-  const { error } = await supabase.from('profiles').delete().eq('id', id);
-  if (error) throw new AppError(500, error.message);
+  const adminId = req.user!.userId;
   
-  await logAction(req.user!.userId, 'DELETE', 'USER', `Deleted user account ID ${id}`, id);
+  // Clean up database references to prevent foreign key constraint violations
+  // 1. Reassign NOT NULL references to the admin performing the deletion
+  await supabase.from('reports').update({ author_id: adminId }).eq('author_id', id);
+  await supabase.from('accomplishment_exports').update({ exported_by: adminId }).eq('exported_by', id);
+  
+  // 2. Nullify optional references
+  await supabase.from('attendance_records').update({ scanned_by: null }).eq('scanned_by', id);
+  await supabase.from('reports').update({ approved_by: null }).eq('approved_by', id);
+  await supabase.from('reports').update({ submitted_by: null }).eq('submitted_by', id);
+  await supabase.from('reports').update({ created_by: null }).eq('created_by', id);
+  await supabase.from('reports').update({ resolved_by: null }).eq('resolved_by', id);
+  await supabase.from('events').update({ created_by: null }).eq('created_by', id);
+  await supabase.from('activities').update({ committee_id: null }).eq('committee_id', id);
+
+  // 3. Delete auth account
+  await supabase.auth.admin.deleteUser(id);
+  
+  // 4. Delete the profile
+  const { error } = await supabase.from('profiles').delete().eq('id', id);
+  if (error) {
+    // If it still fails, it means there is another constraint we missed. 
+    // Throwing an informative error is better than a cryptic DB error.
+    console.error('[deactivateUser] Delete error:', error.message);
+    throw new AppError(500, `Could not delete profile due to database constraints: ${error.message}`);
+  }
+  
+  await logAction(adminId, 'DELETE', 'USER', `Deleted user account ID ${id} and reassigned their records`, id);
 
   res.json({ message: 'Account deleted' });
 }
