@@ -1,8 +1,46 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
-import { createReportSchema, rejectReportSchema, compileReportSchema } from '../validators/report.validator';
+import { createReportSchema, rejectReportSchema, compileReportSchema, updateReportSchema } from '../validators/report.validator';
 import { generateAccomplishmentPDF, generateSingleReportPDF } from '../services/pdfService';
+
+export async function updateReport(req: Request, res: Response) {
+  const { id } = req.params;
+  const body = updateReportSchema.parse(req.body);
+
+  const { data: report, error: fetchErr } = await supabase
+    .from('reports')
+    .select('author_id, type')
+    .eq('id', id)
+    .single();
+
+  if (fetchErr || !report) throw new AppError(404, 'Report not found');
+
+  const isAuthor = report.author_id === req.user!.userId;
+  const isAdmin  = ['President', 'Secretary'].includes(req.user!.role);
+
+  if (!isAuthor && !isAdmin) {
+    throw new AppError(403, 'You do not have permission to edit this report');
+  }
+
+  const update: any = { ...body };
+  if (body.activityId !== undefined) {
+    update.activity_id = body.activityId;
+    delete update.activityId;
+  }
+
+  const { data: updated, error } = await supabase
+    .from('reports')
+    .update(update)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new AppError(400, error.message);
+
+  await logAction(req.user!.userId, 'UPDATE', 'REPORT', `Updated report ID: ${id}`, id);
+  res.json(updated);
+}
 
 export async function exportSingleReport(req: Request, res: Response) {
   const { data: report, error } = await supabase

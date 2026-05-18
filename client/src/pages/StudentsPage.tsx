@@ -21,6 +21,7 @@ import {
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import JSZip from 'jszip';
 import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
 import { Badge, Button, Card, CardBody, Input, Modal, Spinner } from '@/components/ui';
@@ -61,6 +62,7 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [qrStudent, setQrStudent] = useState<Student | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const { data: sections = [], refetch: refetchSections } = useQuery({
     queryKey: ['student-sections'],
@@ -183,6 +185,92 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
     }
   };
 
+  const handleDownloadZip = async () => {
+    try {
+      setIsDownloading(true);
+      const params = new URLSearchParams({ limit: '5000' });
+      if (search.trim()) params.set('search', search.trim());
+      if (yearFilter) params.set('yearLevel', yearFilter);
+      if (sectionFilter) params.set('section', sectionFilter);
+      
+      const { data } = await api.get(`/students?${params}`);
+      const allFiltered: Student[] = data.students;
+
+      if (allFiltered.length === 0) {
+        toast.error('No students to download');
+        return;
+      }
+
+      toast.loading('Generating ZIP file...', { id: 'zip' });
+
+      const zip = new JSZip();
+
+      // Create a canvas once to draw names
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas not supported');
+
+      canvas.width = 300;
+      canvas.height = 350;
+
+      for (const student of allFiltered) {
+        const qrData = `SMS|${student.studentId}|${student.name.first} ${student.name.last}|${student.section}`;
+        const qrDataUrl = await QRCode.toDataURL(qrData, {
+          width: 300,
+          margin: 2,
+          color: { dark: '#000000', light: '#ffffff' },
+          errorCorrectionLevel: 'H',
+        });
+
+        // Draw everything on canvas
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Load QR image
+        const img = new Image();
+        img.src = qrDataUrl;
+        await new Promise((resolve) => { img.onload = () => resolve(true); });
+        ctx.drawImage(img, 0, 0, 300, 300);
+
+        // Draw text
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        const fullName = `${student.name.first} ${student.name.last}`;
+        ctx.fillText(fullName, 150, 305);
+        
+        ctx.font = '14px sans-serif';
+        ctx.fillStyle = '#64748b';
+        ctx.fillText(`${student.studentId} • ${student.section}`, 150, 328);
+
+        // Convert canvas to blob
+        const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.9));
+
+        // Add to zip, organized by section folder
+        const sectionFolder = zip.folder(student.section || 'Unassigned');
+        sectionFolder?.file(`${student.studentId} - ${student.name.last}.jpg`, blob);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = window.URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `QR_Codes_${sectionFilter || 'All_Sections'}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('ZIP downloaded!', { id: 'zip' });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to generate ZIP', { id: 'zip' });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const students = data?.students ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -195,51 +283,57 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
         <DirectoryMetric label="Page" value={page} icon={Search} />
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex w-full flex-col gap-2 sm:flex-row lg:max-w-3xl">
-          <div className="relative flex-1">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+          <div className="relative flex-1 sm:w-64">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search name or student ID"
-              className="h-10 w-full rounded-lg border border-surface-border bg-white pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              placeholder="Search name or ID..."
+              className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20"
             />
           </div>
 
-          {/* Section filter */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <select
               value={sectionFilter}
               onChange={(e) => { setSectionFilter(e.target.value); setPage(1); }}
-              className="h-10 rounded-lg border border-surface-border bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20"
             >
               <option value="">All sections</option>
               {sections.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-          </div>
 
-          <select
-            value={yearFilter}
-            onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}
-            className="h-10 rounded-lg border border-surface-border bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-          >
-            <option value="">All years</option>
-            {[1, 2, 3, 4].map((y) => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
-          </select>
+            <select
+              value={yearFilter}
+              onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}
+              className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20"
+            >
+              <option value="">All years</option>
+              {[1, 2, 3, 4].map((y) => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
+            </select>
+          </div>
         </div>
 
         {canManageStudents ? (
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button onClick={handlePrintFiltered} variant="secondary" loading={isPrinting} className="w-full sm:w-auto">
-              <Printer className="mr-2 h-4 w-4" /> Print QRs
-            </Button>
-            <Button onClick={() => setBulkOpen(true)} variant="secondary" className="w-full sm:w-auto">
-              <Users2 className="mr-2 h-4 w-4" /> Bulk Add
-            </Button>
-            <Button onClick={() => setAddOpen(true)} className="w-full sm:w-auto">
-              <UserPlus className="mr-2 h-4 w-4" /> Add Student
-            </Button>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <div className="flex gap-2 w-full sm:w-auto border-b sm:border-b-0 sm:border-r border-slate-200 pb-2 sm:pb-0 sm:pr-2">
+              <Button onClick={handlePrintFiltered} variant="secondary" size="sm" loading={isPrinting} className="flex-1 sm:flex-none">
+                <Printer className="mr-1.5 h-3.5 w-3.5" /> Print
+              </Button>
+              <Button onClick={handleDownloadZip} variant="secondary" size="sm" loading={isDownloading} className="flex-1 sm:flex-none">
+                <Download className="mr-1.5 h-3.5 w-3.5" /> ZIP
+              </Button>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button onClick={() => setBulkOpen(true)} variant="secondary" size="sm" className="flex-1 sm:flex-none">
+                <Users2 className="mr-1.5 h-3.5 w-3.5" /> Bulk
+              </Button>
+              <Button onClick={() => setAddOpen(true)} size="sm" className="flex-1 sm:flex-none">
+                <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Add
+              </Button>
+            </div>
           </div>
         ) : (
           <Badge variant="default" className="w-fit">Directory view</Badge>

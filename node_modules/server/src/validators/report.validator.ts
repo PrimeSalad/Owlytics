@@ -13,6 +13,16 @@ export const createReportSchema = z.object({
   // attachments come via multipart — handled separately
 });
 
+export const updateReportSchema = z.object({
+  title:      z.string().min(1).max(200).optional(),
+  content:    z.string().min(1).max(5000).optional(),
+  status:     z.enum(['Draft', 'Submitted', 'Approved', 'Rejected']).optional(),
+  objective:  z.string().max(500).optional(),
+  duration:   z.string().max(200).optional(),
+  remarks:    z.string().max(500).optional(),
+  activityId: z.string().optional().transform(v => v === '' ? null : v),
+});
+
 export const rejectReportSchema = z.object({
   rejectionNote: z.string().min(1).max(500),
 });

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, XCircle, AlertTriangle, ChevronLeft, ChevronRight, X, Trash2, ZoomIn, Download } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, ChevronLeft, ChevronRight, X, Trash2, ZoomIn, Download, Edit2, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, Button } from '@/components/ui';
-import { useReport, useApproveReport, useRejectReport, useResolveReport, useDeleteReport } from './useReports';
+import { useReport, useApproveReport, useRejectReport, useResolveReport, useDeleteReport, useUpdateReport } from './useReports';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types';
 import { api } from '@/lib/api';
@@ -21,12 +21,17 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
   const reject   = useRejectReport();
   const resolve  = useResolveReport();
   const del      = useDeleteReport();
+  const update   = useUpdateReport();
 
   const [rejectNote,  setRejectNote]  = useState('');
   const [showReject,  setShowReject]  = useState(false);
   const [confirmDel,  setConfirmDel]  = useState(false);
   const [lightbox,    setLightbox]    = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  
+  const [isEditing,   setIsEditing]   = useState(false);
+  const [editTitle,   setEditTitle]   = useState('');
+  const [editContent, setEditContent] = useState('');
 
   useEffect(() => {
     setRejectNote('');
@@ -34,12 +39,20 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
     setConfirmDel(false);
     setLightbox(null);
     setIsExporting(false);
-  }, [reportId]);
+    setIsEditing(false);
+    if (report) {
+      setEditTitle(report.title);
+      setEditContent(report.content);
+    }
+  }, [reportId, report]);
 
   const canReview = ['Officer', 'Secretary', 'President'].includes(userRole);
   const images    = report?.report_attachments ?? [];
   const isOwner   = report?.author_id === userId;
-  const canDelete = isOwner || ['President', 'Secretary'].includes(userRole);
+  const isAdmin   = ['President', 'Secretary'].includes(userRole);
+  const canDelete = isOwner || isAdmin;
+  const canEdit   = isOwner || isAdmin;
+  const showEditButton = canEdit && !confirmDel && !showReject && (isAdmin || report?.status !== 'Approved');
 
   async function handleExportPDF() {
     if (!reportId) return;
@@ -85,9 +98,24 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
     catch { toast.error('Failed to delete'); }
   }
 
+  async function handleSaveEdit() {
+    if (!reportId) return;
+    if (!editTitle.trim() || !editContent.trim()) {
+      toast.error('Title and content cannot be empty');
+      return;
+    }
+    try {
+      await update.mutateAsync({ id: reportId, data: { title: editTitle, content: editContent } });
+      toast.success('Report updated');
+      setIsEditing(false);
+    } catch {
+      toast.error('Failed to update report');
+    }
+  }
+
   return (
     <>
-      <Modal open={!!reportId} onClose={onClose} title={report?.title ?? '…'} size="xl">
+      <Modal open={!!reportId} onClose={onClose} title={isEditing ? 'Edit Report' : (report?.title ?? '…')} size="xl">
         {isLoading || !report ? (
           <div className="py-12 text-center text-slate-400 text-sm">Loading…</div>
         ) : (
@@ -117,10 +145,37 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
             )}
 
             {/* Content */}
-            <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed break-all">{report.content}</p>
+            {isEditing ? (
+              <div className="space-y-3">
+                <input 
+                  value={editTitle} 
+                  onChange={e => setEditTitle(e.target.value)} 
+                  className="w-full font-semibold text-lg border border-brand-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-brand-50/30"
+                  placeholder="Report Title"
+                />
+                <textarea 
+                  value={editContent} 
+                  onChange={e => setEditContent(e.target.value)} 
+                  className="w-full text-sm leading-relaxed border border-brand-200 rounded-lg px-3 py-2 min-h-[150px] focus:outline-none focus:ring-2 focus:ring-brand-400 bg-brand-50/30"
+                  placeholder="Report Content"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => {
+                    setIsEditing(false);
+                    setEditTitle(report.title);
+                    setEditContent(report.content);
+                  }}>Cancel</Button>
+                  <Button size="sm" onClick={handleSaveEdit} loading={update.isPending}>
+                    <Save className="h-4 w-4" /> Save Changes
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed break-all">{report.content}</p>
+            )}
 
             {/* Image grid */}
-            {images.length > 0 && (
+            {images.length > 0 && !isEditing && (
               <div>
                 <p className="text-xs font-medium text-slate-500 mb-2">{images.length} photo{images.length !== 1 ? 's' : ''}</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -153,7 +208,7 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
             )}
 
             {/* Bottom action bar */}
-            {(canReview || canDelete || report.status === 'Approved') && (
+            {!isEditing && (canReview || canDelete || canEdit || report.status === 'Approved') && (
               <div className="pt-3 border-t border-slate-100">
                 {/* Reject textarea */}
                 {showReject && (
@@ -179,16 +234,27 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
                 )}
 
                 <div className="flex items-center gap-2">
-                  {/* Trash icon — left side */}
-                  {canDelete && !confirmDel && !showReject && (
-                    <button
-                      onClick={() => setConfirmDel(true)}
-                      className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      title="Delete report"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
+                  {/* Left side actions (Delete, Edit) */}
+                  <div className="flex items-center gap-1">
+                    {canDelete && !confirmDel && !showReject && (
+                      <button
+                        onClick={() => setConfirmDel(true)}
+                        className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        title="Delete report"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                    {showEditButton && (
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-brand-500 hover:bg-brand-50 transition-colors"
+                        title="Edit report"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
 
                   <div className="flex gap-2 ml-auto flex-wrap justify-end">
                     {report.status === 'Approved' && report.type !== 'Accomplishment' && (

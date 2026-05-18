@@ -59,6 +59,17 @@ export function useCreateReport() {
   });
 }
 
+export function useUpdateReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Report> }) => api.patch(`/reports/${id}`, data),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['reports'] });
+      qc.invalidateQueries({ queryKey: ['report', variables.id] });
+    },
+  });
+}
+
 export function useDeleteReport() {
   const qc = useQueryClient();
   return useMutation({
