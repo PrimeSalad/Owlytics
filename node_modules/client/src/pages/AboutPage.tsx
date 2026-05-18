@@ -25,7 +25,8 @@ export function AboutPage() {
                 </div>
               </div>
               <p className="mx-auto max-w-2xl text-base leading-relaxed text-slate-600">
-                A comprehensive student monitoring and organization management system designed for <span className="font-bold text-brand-600">BSIT/BSIS</span> student organizations. 
+                A comprehensive student monitoring and organization management system designed for <span className="font-bold text-brand-600">BSI/T & BSIS</span> student organizations.
+ 
                 Streamline attendance tracking, event management, task collaboration, and reporting all in one powerful platform.
               </p>
             </div>

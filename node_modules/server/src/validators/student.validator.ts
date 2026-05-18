@@ -5,6 +5,7 @@ export const createStudentSchema = z.object({
   name: z.object({ first: z.string().min(1), last: z.string().min(1) }),
   email: z.string().email(),
   section: z.string().min(1),
+  sectionId: z.string().uuid().optional(),
   yearLevel: z.number().int().min(1).max(4),
 });
 

@@ -5,10 +5,53 @@ import { createUserSchema, updateUserSchema } from '../validators/user.validator
 import { logAction } from '../utils/auditLogger';
 
 export async function listUsers(_req: Request, res: Response) {
-  const { data, error } = await supabase
+  let query = supabase
     .from('profiles')
-    .select('id, student_id, first_name, last_name, role, avatar_url, is_active, last_login, created_at')
+    .select(`
+      id,
+      student_id,
+      first_name,
+      last_name,
+      role,
+      avatar_url,
+      section_id,
+      is_active,
+      last_login,
+      created_at,
+      sections (
+        id,
+        course_id,
+        academic_year,
+        block,
+        courses (
+          course_name
+        )
+      )
+    `)
     .order('created_at', { ascending: false });
+
+  let { data, error } = await query;
+
+  // Fallback if relationship is missing
+  if (error && (error.code === 'PGRST200' || error.code === 'PGRST205')) {
+    const fallbackRes = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        student_id,
+        first_name,
+        last_name,
+        role,
+        avatar_url,
+        section_id,
+        is_active,
+        last_login,
+        created_at
+      `)
+      .order('created_at', { ascending: false });
+    data = fallbackRes.data;
+    error = fallbackRes.error;
+  }
 
   if (error) throw new AppError(500, error.message);
 
@@ -18,18 +61,27 @@ export async function listUsers(_req: Request, res: Response) {
     ? {}
     : Object.fromEntries(authList.users.map((u) => [u.id, u.email ?? '']));
 
-  res.json(data.map((p) => ({
-    _id: p.id,
-    studentId: p.student_id,
-    name: { first: p.first_name, last: p.last_name },
-    email: emailMap[p.id] ?? '',
-    role: p.role,
-    avatarUrl: p.avatar_url,
-    assignedSection: null,
-    isActive: p.is_active,
-    lastLogin: p.last_login,
-    createdAt: p.created_at,
-  })));
+  res.json(data.map((p: any) => {
+    let assignedSection = null;
+    if (p.section_id && p.sections) {
+      const section = p.sections;
+      assignedSection = `${section.courses.course_name} - Year ${section.academic_year} - Block ${section.block}`;
+    }
+    
+    return {
+      _id: p.id,
+      studentId: p.student_id,
+      name: { first: p.first_name, last: p.last_name },
+      email: emailMap[p.id] ?? '',
+      role: p.role,
+      avatarUrl: p.avatar_url,
+      sectionId: p.section_id,
+      assignedSection,
+      isActive: p.is_active,
+      lastLogin: p.last_login,
+      createdAt: p.created_at,
+    };
+  }));
 }
 
 export async function createUser(req: Request, res: Response) {
@@ -44,6 +96,19 @@ export async function createUser(req: Request, res: Response) {
   if (existingProfileError) throw new AppError(500, existingProfileError.message);
   if (existingProfile) {
     throw new AppError(409, 'Access ID is already used by another account');
+  }
+
+  // Validate section_id if provided (required for Attendance role)
+  if (data.sectionId) {
+    const { data: section, error: sectionError } = await supabase
+      .from('sections')
+      .select('id, is_active')
+      .eq('id', data.sectionId)
+      .maybeSingle();
+
+    if (sectionError) throw new AppError(500, sectionError.message);
+    if (!section) throw new AppError(404, 'Selected section not found');
+    if (!section.is_active) throw new AppError(400, 'Selected section is inactive');
   }
 
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -67,14 +132,22 @@ export async function createUser(req: Request, res: Response) {
     );
   }
 
-  const { error: profileError } = await supabase.from('profiles').upsert({
+  // Prepare profile data
+  const profileData: any = {
     id: authData.user.id,
     student_id: data.studentId,
     first_name: data.name.first,
     last_name: data.name.last,
     role: data.role,
     is_active: true,
-  }, { onConflict: 'id' });
+  };
+
+  // Add section_id if provided (required for Attendance role)
+  if (data.sectionId) {
+    profileData.section_id = data.sectionId;
+  }
+
+  const { error: profileError } = await supabase.from('profiles').upsert(profileData, { onConflict: 'id' });
 
   if (profileError) {
     await supabase.auth.admin.deleteUser(authData.user.id);
@@ -112,13 +185,31 @@ export async function updateUser(req: Request, res: Response) {
 
   const updatePayload: Record<string, unknown> = {};
   
-  // Only President can update role and isActive
+  // Only President can update role, isActive, and sectionId
   if (isPresident) {
     if (data.role) updatePayload.role = data.role;
     if (data.isActive !== undefined) updatePayload.is_active = data.isActive;
+    
+    // Validate section_id if provided
+    if (data.sectionId) {
+      const { data: section, error: sectionError } = await supabase
+        .from('sections')
+        .select('id, is_active')
+        .eq('id', data.sectionId)
+        .maybeSingle();
+
+      if (sectionError) throw new AppError(500, sectionError.message);
+      if (!section) throw new AppError(404, 'Selected section not found');
+      if (!section.is_active) throw new AppError(400, 'Selected section is inactive');
+      
+      updatePayload.section_id = data.sectionId;
+    } else if (data.sectionId === null) {
+      // Explicitly allow clearing section_id
+      updatePayload.section_id = null;
+    }
   } else {
-    if (data.role || data.isActive !== undefined) {
-      throw new AppError(403, 'You do not have permission to change roles or active status');
+    if (data.role || data.isActive !== undefined || data.sectionId) {
+      throw new AppError(403, 'You do not have permission to change roles, active status, or sections');
     }
   }
 

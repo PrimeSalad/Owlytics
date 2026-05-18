@@ -8,6 +8,7 @@ export interface User {
   role: UserRole;
   avatarUrl?: string;
   avatarColor?: number;
+  sectionId?: string | null;
   assignedSection?: string | null;
   isActive: boolean;
   lastLogin?: string;

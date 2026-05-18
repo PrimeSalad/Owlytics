@@ -12,6 +12,7 @@ import {
 import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
 import { Badge, Button, Card, CardBody, Input, Modal, Spinner } from '@/components/ui';
+import SectionSelector from '@/components/ui/SectionSelector';
 import { api } from '@/lib/api';
 import type { User, UserRole } from '@/types';
 import { useForm } from 'react-hook-form';
@@ -29,13 +30,26 @@ const createSchema = z.object({
   email: z.string().email('Valid email is required'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   role: z.enum(roles),
-});
+  sectionId: z.string().uuid('Invalid section ID').optional(),
+}).refine(
+  (data) => {
+    // If role is Attendance, sectionId must be provided
+    if (data.role === 'Attendance') {
+      return !!data.sectionId;
+    }
+    return true;
+  },
+  {
+    message: 'Section is required for Attendance role',
+    path: ['sectionId'],
+  }
+);
 type CreateForm = z.infer<typeof createSchema>;
 
 const updateSchema = z.object({
   role: z.enum(roles),
   isActive: z.boolean(),
-  assignedSection: z.string().nullable().optional(),
+  sectionId: z.string().uuid('Invalid section ID').nullable().optional(),
 });
 type UpdateForm = z.infer<typeof updateSchema>;
 
@@ -88,6 +102,7 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
         email: values.email,
         password: values.password,
         role: values.role,
+        ...(values.sectionId && { sectionId: values.sectionId }),
       });
     },
     onSuccess: () => {
@@ -189,6 +204,7 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Account</th>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Access ID</th>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Role</th>
+                    <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Section</th>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</th>
                     <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">Actions</th>
                   </tr>
@@ -215,6 +231,17 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
                       <td className="px-6 py-4 font-mono text-xs text-slate-500">{u.studentId}</td>
                       <td className="px-6 py-4">
                         <Badge variant={roleBadge[u.role]}>{roleLabel(u.role)}</Badge>
+                      </td>
+                      <td className="px-6 py-4 text-xs text-slate-600">
+                        {u.role === 'Attendance' ? (
+                          u.assignedSection ? (
+                            <span className="rounded-md bg-blue-50 px-2 py-1 text-blue-700">{u.assignedSection}</span>
+                          ) : (
+                            <span className="text-slate-400">Not assigned</span>
+                          )
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -329,12 +356,17 @@ function CreateMemberModal({
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
     reset,
   } = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
     defaultValues: { role: 'Officer' },
   });
+
+  const selectedRole = watch('role');
+  const selectedSectionId = watch('sectionId');
 
   return (
     <Modal
@@ -385,6 +417,22 @@ function CreateMemberModal({
           </select>
           {errors.role && <p className="mt-1 text-xs text-danger">{errors.role.message}</p>}
         </div>
+
+        {selectedRole === 'Attendance' && (
+          <div className="rounded-2xl border border-brand-100 bg-brand-50/30 p-4 animate-in slide-in-from-top-2 duration-300">
+            <SectionSelector
+              value={selectedSectionId}
+              onChange={(sectionId) => setValue('sectionId', sectionId)}
+              required
+              onlyActiveDirectory={true}
+            />
+            {errors.sectionId && <p className="mt-1 text-xs text-danger font-medium ml-1">{errors.sectionId.message}</p>}
+            <p className="mt-2 text-[10px] text-brand-600 font-bold uppercase tracking-wider ml-1">
+              Note: You can only assign sections that have students in the directory.
+            </p>
+          </div>
+        )}
+
         <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
@@ -413,13 +461,15 @@ function EditMemberModal({
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<UpdateForm>({
     resolver: zodResolver(updateSchema),
-    defaultValues: { role: user.role, isActive: user.isActive, assignedSection: user.assignedSection || null },
+    defaultValues: { role: user.role, isActive: user.isActive, sectionId: user.sectionId || null },
   });
   
   const selectedRole = watch('role');
+  const selectedSectionId = watch('sectionId');
 
   return (
     <Modal
@@ -443,13 +493,15 @@ function EditMemberModal({
         </div>
         
         {selectedRole === 'Attendance' && (
-          <Input
-            label="Assigned Section"
-            placeholder="e.g. BSIT 3-A"
-            hint="The section this Attendance role user is assigned to"
-            error={errors.assignedSection?.message}
-            {...register('assignedSection')}
-          />
+          <div className="rounded-2xl border border-brand-100 bg-brand-50/30 p-4 animate-in slide-in-from-top-2 duration-300">
+            <SectionSelector
+              value={selectedSectionId || undefined}
+              onChange={(sectionId) => setValue('sectionId', sectionId)}
+              required={false}
+              onlyActiveDirectory={true}
+            />
+            {errors.sectionId && <p className="mt-1 text-xs text-danger font-medium ml-1">{errors.sectionId.message}</p>}
+          </div>
         )}
         
         <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-surface-border px-3 py-2">

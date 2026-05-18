@@ -791,7 +791,7 @@ function StudentFormModal({
 }
 
 
-const COURSES = ['BSIT', 'BSIS'];
+const COURSES = ['BSI/T', 'BSIS'];
 const YEARS = [1, 2, 3, 4];
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
@@ -808,7 +808,7 @@ function SectionPicker({
 }) {
   // Parse existing value e.g. "BSIT 3-A" → course=BSIT, year=3, letter=A
   const parse = (v = '') => {
-    const m = v.match(/^([A-Z]+)\s+(\d)-([A-G])$/);
+    const m = v.match(/^([A-Z/]+)\s+(\d)-([A-G])$/);
     return m ? { course: m[1], year: m[2], letter: m[3] } : { course: '', year: '', letter: '' };
   };
 

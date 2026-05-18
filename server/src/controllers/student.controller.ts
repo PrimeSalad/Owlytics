@@ -15,28 +15,54 @@ export async function listSections(_req: Request, res: Response) {
 }
 
 export async function listStudents(req: Request, res: Response) {
-  const { page = 1, limit = 20, search, yearLevel, section, orderBy } = req.query;
+  const { page = 1, limit = 20, search, yearLevel, section, sectionId, orderBy } = req.query;
+  const assignedSectionId = req.assignedSectionId;
   const from = (Number(page) - 1) * Number(limit);
   const to = from + Number(limit) - 1;
 
-  let query = supabase.from('students').select('*', { count: 'exact' });
+  // Try to join with sections for display_name, but fallback to simple select if table/relation is missing
+  let query = supabase.from('students').select('*, sections(display_name)', { count: 'exact' });
 
   if (search) {
     query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,student_id.ilike.%${search}%`);
   }
   if (yearLevel) query = query.eq('year_level', Number(yearLevel));
   if (section) query = query.eq('section', section);
+  
+  if (assignedSectionId) {
+    query = query.eq('section_id', assignedSectionId);
+  } else if (sectionId) {
+    query = query.eq('section_id', sectionId);
+  }
 
   const sortCol = orderBy === 'section' ? 'section' : 'created_at';
-  const { data, error, count } = await query.range(from, to).order(sortCol, { ascending: true });
+  let { data, error, count } = await query.range(from, to).order(sortCol, { ascending: true });
+
+  // Fallback if join fails for any reason (missing table, column, or relationship)
+  if (error) {
+    const fallbackQuery = supabase.from('students').select('*', { count: 'exact' });
+    if (search) fallbackQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,student_id.ilike.%${search}%`);
+    if (yearLevel) fallbackQuery.eq('year_level', Number(yearLevel));
+    if (section) fallbackQuery.eq('section', section);
+    if (assignedSectionId) fallbackQuery.eq('section_id', assignedSectionId);
+    else if (sectionId) fallbackQuery.eq('section_id', sectionId);
+    
+    const fallbackRes = await fallbackQuery.range(from, to).order(sortCol, { ascending: true });
+    data = fallbackRes.data;
+    error = fallbackRes.error;
+    count = fallbackRes.count;
+  }
+
   if (error) throw new AppError(500, error.message);
 
-  const students = data.map((s) => ({
+  const students = (data || []).map((s: any) => ({
     _id: s.id,
     studentId: s.student_id,
     name: { first: s.first_name, last: s.last_name },
     email: s.email,
     section: s.section,
+    sectionId: s.section_id,
+    assignedSection: s.sections?.display_name,
     yearLevel: s.year_level,
     createdAt: s.created_at,
   }));
@@ -60,7 +86,7 @@ export async function createStudent(req: Request, res: Response) {
     data.section
   );
   
-  const { data: student, error } = await supabase.from('students').insert({
+  const insertData: any = {
     student_id: data.studentId,
     first_name: data.name.first,
     last_name: data.name.last,
@@ -68,7 +94,13 @@ export async function createStudent(req: Request, res: Response) {
     section: data.section,
     year_level: data.yearLevel,
     qr_code_data: qrData,
-  }).select().single();
+  };
+
+  if (data.sectionId) {
+    insertData.section_id = data.sectionId;
+  }
+  
+  const { data: student, error } = await supabase.from('students').insert(insertData).select().single();
 
   if (error) throw new AppError(400, error.message);
   
@@ -125,6 +157,7 @@ export async function updateStudent(req: Request, res: Response) {
     update.section = data.section;
     needsQRRegeneration = true;
   }
+  if (data.sectionId) update.section_id = data.sectionId;
   if (data.yearLevel) update.year_level = data.yearLevel;
 
   // Regenerate QR data if student ID or name changed (but not stored in DB, generated on-the-fly)
