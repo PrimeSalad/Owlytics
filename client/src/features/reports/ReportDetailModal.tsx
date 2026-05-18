@@ -191,7 +191,7 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
                   )}
 
                   <div className="flex gap-2 ml-auto flex-wrap justify-end">
-                    {report.status === 'Approved' && (
+                    {report.status === 'Approved' && report.type !== 'Accomplishment' && (
                       <Button variant="secondary" size="sm" loading={isExporting} onClick={handleExportPDF}>
                         <Download className="h-4 w-4" /> Export PDF
                       </Button>

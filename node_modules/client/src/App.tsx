@@ -24,7 +24,6 @@ export default function App() {
 
   useEffect(() => {
     fetchMe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

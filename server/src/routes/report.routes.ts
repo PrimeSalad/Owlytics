@@ -13,6 +13,8 @@ reportRouter.use(requireAuth);
 
 // Specific routes before /:id
 reportRouter.get('/exports/:eventId',       requireRole('Secretary', 'President'), listExports);
+reportRouter.post('/compile',               requireRole('Secretary', 'President'), compileAccomplishment);
+reportRouter.post('/compile-word',          requireRole('Secretary', 'President'), compileAccomplishmentWord);
 reportRouter.post('/compile/:eventId',      requireRole('Secretary', 'President'), compileAccomplishment);
 reportRouter.post('/compile-word/:eventId', requireRole('Secretary', 'President'), compileAccomplishmentWord);
 

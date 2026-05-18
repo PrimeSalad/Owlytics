@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { GripVertical, Download, CheckCircle2, FileText, AlertCircle, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, Button, Spinner } from '@/components/ui';
-import { useCompileReport, useCompileReportWord, useExports, useEvents } from './useReports';
+import { useCompileReportWord, useExports, useEvents } from './useReports';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
@@ -27,7 +27,7 @@ export function CompileReportModal({ open, onClose }: Props) {
   const [orgName, setOrgName]             = useState('STUDENT ORGANIZATION');
   const [preparedBy, setPreparedBy]       = useState('');
   const [academicYear, setAcademicYear]   = useState('');
-  const [eventId, setEventId]             = useState('');
+  const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [sections, setSections]           = useState<string[]>([]);
   const [isFinal, setIsFinal]             = useState(false);
   const [dragging, setDragging]           = useState<number | null>(null);
@@ -54,24 +54,32 @@ export function CompileReportModal({ open, onClose }: Props) {
 
 
   const { data: events = [] }  = useEvents();
-  const compile     = useCompileReport();
   const compileWord = useCompileReportWord();
-  const { data: exports = [] } = useExports(eventId || null);
+  // We use the first event ID for listing exports for now
+  const { data: exports = [] } = useExports(selectedEventIds.length > 0 ? selectedEventIds[0] : null);
 
   const { data: reports = [], isLoading: loadingReports } = useQuery({
-    queryKey: ['reports', { eventId, status: 'Approved', type: 'Accomplishment' }],
+    queryKey: ['reports', { eventIds: selectedEventIds, status: 'Approved', type: 'Accomplishment' }],
     queryFn: () =>
-      api.get<Report[]>(`/reports?eventId=${eventId}&status=Approved&type=Accomplishment`).then((r) => r.data),
-    enabled: !!eventId,
+      api.get<Report[]>('/reports', {
+        params: {
+          eventId: selectedEventIds,
+          status: 'Approved',
+          type: 'Accomplishment'
+        }
+      }).then((r) => r.data),
+    enabled: selectedEventIds.length > 0,
   });
 
-  const selectedEvent = events.find((e: Event) => e._id === eventId);
+  const selectedEvents = events.filter((e: Event) => selectedEventIds.includes(e._id));
 
-  // Build a map of activityId → activity name from the selected event
+  // Build a map of activityId → activity name from all selected events
   const activityNameMap = new Map<string, string>();
-  if (selectedEvent?.activities) {
-    for (const a of selectedEvent.activities as any[]) {
-      activityNameMap.set(a.id ?? a._id, a.name);
+  for (const event of selectedEvents) {
+    if (event.activities) {
+      for (const a of event.activities as any[]) {
+        activityNameMap.set(a.id ?? a._id, a.name);
+      }
     }
   }
 
@@ -81,14 +89,14 @@ export function CompileReportModal({ open, onClose }: Props) {
   }
 
   function handleClose() {
-    setStep(0); setEventId(''); setSections([]); setIsFinal(false);
+    setStep(0); setSelectedEventIds([]); setSections([]); setIsFinal(false);
     onClose();
   }
 
-  function handleEventSelect(id: string) {
-    setEventId(id);
-    setSections([]);
-    setStep(2);
+  function handleEventToggle(id: string) {
+    setSelectedEventIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   }
 
   function initSections() {
@@ -109,30 +117,6 @@ export function CompileReportModal({ open, onClose }: Props) {
   }
   function onDragEnd() { setDragging(null); }
 
-  async function handleExportPDF() {
-    if (!presidentName.trim() || !academicYear.trim() || !secretaryName.trim()) {
-      toast.error('Please fill in all required fields first.');
-      setStep(0);
-      return;
-    }
-    try {
-      await compile.mutateAsync({
-        eventId,
-        sectionOrder: sections,
-        isFinal,
-        presidentName: presidentName.trim().toUpperCase(),
-        secretaryName: secretaryName.trim().toUpperCase(),
-        orgName: orgName.trim().toUpperCase(),
-        preparedBy: preparedBy.trim().toUpperCase(),
-        academicYear: academicYear.trim(),
-      });
-      toast.success('PDF downloaded!');
-      handleClose();
-    } catch (e: any) {
-      toast.error(e.response?.data?.error ?? 'Export failed');
-    }
-  }
-
   async function handleExportWord() {
     if (!presidentName.trim() || !academicYear.trim() || !secretaryName.trim()) {
       toast.error('Please fill in all required fields first.');
@@ -141,7 +125,7 @@ export function CompileReportModal({ open, onClose }: Props) {
     }
     try {
       await compileWord.mutateAsync({
-        eventId,
+        eventIds: selectedEventIds,
         sectionOrder: sections,
         isFinal,
         presidentName: presidentName.trim().toUpperCase(),
@@ -305,31 +289,52 @@ export function CompileReportModal({ open, onClose }: Props) {
       {/* ── Step 1: Select event ── */}
       {step === 1 && (
         <div className="space-y-3">
-          <p className="text-sm text-slate-500">Choose the event to compile a report for:</p>
+          <p className="text-sm text-slate-500">Choose one or more events to compile into a single report:</p>
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {events.length === 0 && (
               <div className="py-8 text-center text-sm text-slate-400">No events found.</div>
             )}
-            {events.map((e: Event) => (
-              <button
-                key={e._id}
-                onClick={() => handleEventSelect(e._id)}
-                className="w-full text-left px-4 py-3 rounded-xl border border-slate-200 hover:border-brand-400 hover:bg-brand-50 transition-all group"
-              >
-                <p className="font-semibold text-slate-800 text-sm group-hover:text-brand-700">{e.title}</p>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {new Date(e.dateRange?.start ?? '').toLocaleDateString('en-PH', {
-                    month: 'short', day: 'numeric', year: 'numeric',
-                  })}
-                  {e.dateRange?.end && e.dateRange.end !== e.dateRange.start && (
-                    <> – {new Date(e.dateRange.end).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</>
-                  )}
-                </p>
-              </button>
-            ))}
+            {events.map((e: Event) => {
+              const isSelected = selectedEventIds.includes(e._id);
+              return (
+                <button
+                  key={e._id}
+                  onClick={() => handleEventToggle(e._id)}
+                  className={`w-full text-left px-4 py-3 rounded-xl border transition-all group relative flex items-center gap-3 ${
+                    isSelected 
+                      ? 'border-brand-500 bg-brand-50' 
+                      : 'border-slate-200 hover:border-brand-400 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className={`h-5 w-5 rounded border flex items-center justify-center transition-colors ${
+                    isSelected ? 'bg-brand-500 border-brand-500' : 'bg-white border-slate-300 group-hover:border-brand-400'
+                  }`}>
+                    {isSelected && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-semibold text-sm ${isSelected ? 'text-brand-700' : 'text-slate-800'}`}>{e.title}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {new Date(e.dateRange?.start ?? '').toLocaleDateString('en-PH', {
+                        month: 'short', day: 'numeric', year: 'numeric',
+                      })}
+                      {e.dateRange?.end && e.dateRange.end !== e.dateRange.start && (
+                        <> – {new Date(e.dateRange.end).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</>
+                      )}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
-          <div className="pt-2 border-t border-slate-100">
+          <div className="pt-4 flex justify-between items-center border-t border-slate-100">
             <Button variant="secondary" size="sm" onClick={() => setStep(0)}>← Back</Button>
+            <Button 
+              size="sm" 
+              onClick={() => setStep(2)} 
+              disabled={selectedEventIds.length === 0}
+            >
+              Continue ({selectedEventIds.length}) →
+            </Button>
           </div>
         </div>
       )}
@@ -338,7 +343,16 @@ export function CompileReportModal({ open, onClose }: Props) {
       {step === 2 && (
         <div className="space-y-4">
           <div className="bg-brand-50 border border-brand-200 rounded-xl px-4 py-3">
-            <p className="font-semibold text-brand-800 text-sm">{selectedEvent?.title}</p>
+            <p className="font-semibold text-brand-800 text-sm">
+              {selectedEvents.length === 1 
+                ? selectedEvents[0].title 
+                : `${selectedEvents.length} Events Selected`}
+            </p>
+            {selectedEvents.length > 1 && (
+              <p className="text-[10px] text-brand-600 truncate mt-0.5 font-medium">
+                {selectedEvents.map(e => e.title).join(', ')}
+              </p>
+            )}
             {loadingReports ? (
               <div className="flex items-center gap-2 mt-1">
                 <Spinner size="sm" />
@@ -346,7 +360,7 @@ export function CompileReportModal({ open, onClose }: Props) {
               </div>
             ) : (
               <p className="text-xs text-brand-600 mt-0.5">
-                {reports.length} approved accomplishment report{reports.length !== 1 ? 's' : ''} found
+                {reports.length} approved accomplishment report{reports.length !== 1 ? 's' : ''} found across all events
               </p>
             )}
           </div>
@@ -381,6 +395,9 @@ export function CompileReportModal({ open, onClose }: Props) {
                       {r.activity_id && activityNameMap.has(r.activity_id) && (
                         <> · <span className="text-brand-500">{activityNameMap.get(r.activity_id)}</span></>
                       )}
+                      {selectedEvents.length > 1 && (
+                        <> · <span className="text-slate-500">{selectedEvents.find(e => e._id === r.event_id)?.title}</span></>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -411,8 +428,10 @@ export function CompileReportModal({ open, onClose }: Props) {
               <span className="font-medium text-slate-800">{academicYear}</span>
             </div>
             <div className="flex gap-2">
-              <span className="font-semibold text-slate-500 w-28">Event</span>
-              <span className="font-medium text-slate-800 truncate">{selectedEvent?.title}</span>
+              <span className="font-semibold text-slate-500 w-28">Event(s)</span>
+              <span className="font-medium text-slate-800 truncate">
+                {selectedEvents.map(e => e.title).join(', ')}
+              </span>
             </div>
           </div>
 
@@ -510,27 +529,15 @@ export function CompileReportModal({ open, onClose }: Props) {
             <Button variant="secondary" size="sm" onClick={() => setStep(2)}>
               ← Back
             </Button>
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                loading={compileWord.isPending}
-                onClick={handleExportWord}
-                title="Download as Word document (.docx)"
-              >
-                <Download className="h-4 w-4" />
-                Word
-              </Button>
-              <Button
-                size="sm"
-                loading={compile.isPending}
-                onClick={handleExportPDF}
-                title="Download as PDF"
-              >
-                <Download className="h-4 w-4" />
-                PDF
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              loading={compileWord.isPending}
+              onClick={handleExportWord}
+              title="Download as Word document (.docx)"
+            >
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
           </div>
         </div>
       )}

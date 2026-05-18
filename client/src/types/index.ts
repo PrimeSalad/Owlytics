@@ -88,6 +88,9 @@ export interface Report {
   type: 'Update' | 'Emergency' | 'Accomplishment';
   title: string;
   content: string;
+  objective?: string;
+  duration?: string;
+  remarks?: string;
   status: ReportStatus;
   rejection_note?: string;
   approved_by?: string;

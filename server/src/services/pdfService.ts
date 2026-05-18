@@ -9,7 +9,7 @@ interface ActivitySection {
   description?: string;
   start_time?: string;
   end_time?: string;
-  reports: { title: string; content: string; author: string; attachments: Attachment[] }[];
+  reports: { title: string; content: string; author: string; attachments: Attachment[]; objective?: string; duration?: string; remarks?: string }[];
 }
 interface CompileOptions {
   eventTitle: string;
@@ -116,8 +116,28 @@ export async function generateSingleReportPDF(report: any, event?: any): Promise
 }
 
 export async function generateAccomplishmentPDF(opts: CompileOptions): Promise<Buffer> {
-  return new Promise(async (resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 60, autoFirstPage: true });
+  // Pre-fetch all images
+  type FetchedReport = (typeof opts.activities[0]['reports'][0]) & {
+    fetchedImages: { buf: Buffer; caption?: string }[];
+  };
+  const sections = await Promise.all(
+    opts.activities.map(async (act) => ({
+      ...act,
+      reports: await Promise.all(act.reports.map(async (r) => {
+        const sorted = [...r.attachments].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+        const fetchedImages = (await Promise.all(sorted.map(async (att) => {
+          if (!att.url) return null;
+          try { return { buf: await fetchImageBuffer(att.url), caption: att.caption }; }
+          catch { return null; }
+        }))).filter(Boolean) as { buf: Buffer; caption?: string }[];
+        return { ...r, fetchedImages } as FetchedReport;
+      })),
+    }))
+  );
+
+  return new Promise((resolve, reject) => {
+    // Legal size (8.5 x 13 inches) to match Word template
+    const doc = new PDFDocument({ size: [612, 936], margin: 72, autoFirstPage: true });
     const pass = new PassThrough();
     const chunks: Buffer[] = [];
     pass.on('data', (c) => chunks.push(c));
@@ -125,156 +145,197 @@ export async function generateAccomplishmentPDF(opts: CompileOptions): Promise<B
     pass.on('error', reject);
     doc.pipe(pass);
 
-    const W = doc.page.width - 120; // usable width
-    const BRAND = '#4F46E5';
-    const GRAY  = '#64748B';
-    const LIGHT = '#F1F5F9';
+    const L = 72;  // left margin
+    const W = 612 - 144; // usable width (8.5in - 2in margins)
+    const ay = opts.academicYear ?? '2026 – 2027';
+    const presidentName = (opts.presidentName ?? '').toUpperCase();
+    const secretaryName = (opts.secretaryName ?? '').toUpperCase();
+    const ORG = 'College of Information and Computing Sciences Student Organization (CICSSO) of Marinduque State University';
 
-    // ── COVER PAGE ────────────────────────────────────────────
-    doc.rect(0, 0, doc.page.width, 180).fill(BRAND);
+    // ── COVER PAGE ────────────────────────────────────────────────────────────
+    doc.font('Helvetica-Bold').fontSize(12)
+       .text(ORG, L, 144, { width: W, align: 'center' });
 
-    doc.fillColor('white')
-       .font('Helvetica-Bold').fontSize(11)
-       .text((opts.orgName ?? 'Student Organization').toUpperCase(), 60, 60, { width: W, align: 'center' });
+    doc.moveDown(6);
+    doc.font('Helvetica-Bold').fontSize(28)
+       .text('ACCOMPLISHMENT REPORT', { width: W, align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(28)
+       .text(`A.Y. ${ay}`, { width: W, align: 'center' });
 
-    doc.fontSize(26)
-       .text('ACCOMPLISHMENT REPORT', 60, 85, { width: W, align: 'center' });
-
+    doc.moveDown(7);
     doc.font('Helvetica').fontSize(12)
-       .text(opts.eventTitle, 60, 125, { width: W, align: 'center' });
+       .text('Submitted Under Administration of', { width: W, align: 'center' });
+    doc.moveDown(0.5);
+    doc.font('Helvetica-Bold').fontSize(12)
+       .text(presidentName, { width: W, align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(12)
+       .text(`President, CICSSO ${ay}`, { width: W, align: 'center' });
 
-    const start = new Date(opts.eventDateRange.start).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
-    const end   = new Date(opts.eventDateRange.end).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
-    doc.fontSize(10).text(`${start} – ${end}`, 60, 148, { width: W, align: 'center' });
+    doc.moveDown(2);
+    doc.font('Helvetica').fontSize(12)
+       .text('Submitted to:', { width: W, align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(12)
+       .text('OFFICE OF THE STUDENT AFFAIRS AND SERVICES', { width: W, align: 'center' });
 
-    // Meta block
-    doc.fillColor('#1E293B').font('Helvetica').fontSize(10)
-       .text(`Prepared by: ${opts.preparedBy}`, 60, 210)
-       .text(`Date prepared: ${new Date().toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}`, 60, 228);
-
-    // DRAFT watermark
     if (!opts.isFinal) {
       doc.save();
-      doc.rotate(-45, { origin: [doc.page.width / 2, doc.page.height / 2] });
-      doc.fillColor('#E2E8F0').opacity(0.35).font('Helvetica-Bold').fontSize(90)
-         .text('DRAFT', 60, doc.page.height / 2 - 45, { width: W + 60, align: 'center' });
+      doc.rotate(-45, { origin: [306, 468] });
+      doc.fillColor('#CCCCCC').opacity(0.25).font('Helvetica-Bold').fontSize(90)
+         .text('DRAFT', 0, 420, { width: 612, align: 'center' });
       doc.restore();
-      doc.opacity(1);
+      doc.opacity(1).fillColor('black');
     }
 
-    // ── ACTIVITY SECTIONS ─────────────────────────────────────
-    for (const activity of opts.activities) {
-      doc.addPage();
+    // ── PAGE 2: ACCOMPLISHMENT REPORT HEADER + SUMMARY TABLE + DOCUMENTATION ─
+    doc.addPage();
 
-      // Section header bar
-      doc.rect(60, 60, W, 36).fill(BRAND);
-      doc.fillColor('white').font('Helvetica-Bold').fontSize(13)
-         .text(activity.name, 72, 71, { width: W - 24 });
+    doc.font('Helvetica-Bold').fontSize(12)
+       .text('ACCOMPLISHMENT REPORT', L, 72, { width: W, align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(12)
+       .text(`A.Y ${ay}`, { width: W, align: 'center' });
+    doc.moveDown(1);
 
-      if (activity.start_time || activity.end_time) {
-        doc.fillColor(LIGHT).font('Helvetica').fontSize(9)
-           .text(
-             [activity.start_time, activity.end_time].filter(Boolean).join(' – '),
-             72, 71, { width: W - 24, align: 'right' }
-           );
+    // Summary table (Activities | Objectives | Duration | Remarks)
+    const colW = W / 4;
+    const GREEN = '#D9F2D0';
+    const tableTop = doc.y;
+    const headers = ['Activities', 'Objectives', 'Duration', 'Remarks'];
+
+    // Header row
+    doc.rect(L, tableTop, W, 20).fill(GREEN);
+    doc.fillColor('black').font('Helvetica-Bold').fontSize(10);
+    headers.forEach((h, i) => {
+      doc.text(h, L + i * colW, tableTop + 5, { width: colW, align: 'center' });
+    });
+
+    // Draw header borders
+    doc.rect(L, tableTop, W, 20).stroke();
+    for (let i = 1; i < 4; i++) {
+      doc.moveTo(L + i * colW, tableTop).lineTo(L + i * colW, tableTop + 20).stroke();
+    }
+
+    // Data rows
+    let ty = tableTop + 20;
+    for (const sec of sections) {
+      for (const r of sec.reports) {
+        const cells = [r.title, (r as any).objective ?? '', (r as any).duration ?? '', (r as any).remarks ?? ''];
+        const rowH = Math.max(
+          ...cells.map((c) => doc.font('Helvetica').fontSize(10).heightOfString(c || ' ', { width: colW - 8 })),
+          18
+        );
+        if (ty + rowH > doc.page.height - 72) {
+          doc.addPage();
+          ty = 72;
+        }
+        doc.rect(L, ty, W, rowH).stroke();
+        for (let i = 1; i < 4; i++) {
+          doc.moveTo(L + i * colW, ty).lineTo(L + i * colW, ty + rowH).stroke();
+        }
+        doc.font('Helvetica').fontSize(10).fillColor('black');
+        cells.forEach((c, i) => {
+          doc.text(c || '', L + i * colW + 4, ty + 4, { width: colW - 8, align: 'center' });
+        });
+        ty += rowH;
       }
+    }
 
-      let y = 112;
+    // Documentation section
+    if (ty + 40 > doc.page.height - 72) { doc.addPage(); ty = 72; }
+    else { ty += 16; }
 
-      for (const report of activity.reports) {
-        // Report title
-        doc.fillColor('#1E293B').font('Helvetica-Bold').fontSize(11)
-           .text(report.title, 60, y, { width: W });
-        y += 18;
+    doc.font('Helvetica-Bold').fontSize(12).fillColor('black')
+       .text('ACCOMPLISHMENT REPORT DOCUMENTATION', L, ty, { width: W, align: 'center' });
+    ty += 24;
 
-        // Author
-        doc.fillColor(GRAY).font('Helvetica').fontSize(9)
-           .text(`Submitted by: ${report.author}`, 60, y);
-        y += 16;
+    let entryNum = 1;
+    for (const sec of sections) {
+      for (const r of sec.reports) {
+        const dateStr = (r as any).duration ||
+          [sec.start_time, sec.end_time].filter(Boolean).join(' – ') ||
+          new Date(opts.eventDateRange.start).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
 
-        // Content
-        const contentHeight = doc.fontSize(10).heightOfString(report.content, { width: W });
-        if (y + contentHeight > doc.page.height - 80) { doc.addPage(); y = 60; }
-        doc.fillColor('#334155').font('Helvetica').fontSize(10)
-           .text(report.content, 60, y, { width: W, align: 'justify' });
-        y += contentHeight + 16;
+        if (ty + 40 > doc.page.height - 72) { doc.addPage(); ty = 72; }
 
-        // Photos grid (2 columns)
-        const images = [...report.attachments]
-          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-          .filter((a) => a.url);
+        // Numbered heading: bold title + italic date
+        doc.font('Helvetica-Bold').fontSize(11).fillColor('black')
+           .text(`${entryNum}. ${r.title} - `, L + 18, ty, { continued: true, width: W - 18 });
+        doc.font('Helvetica-Oblique').fontSize(11)
+           .text(dateStr, { width: W - 18 });
+        ty = doc.y + 4;
+        ty += 12; // one line space above description
+        // Description (italic, justified)
+        const descH = doc.font('Helvetica').fontSize(10).heightOfString(r.content, { width: W - 18 });
+        if (ty + descH > doc.page.height - 72) { doc.addPage(); ty = 72; }
+        doc.font('Helvetica').fontSize(10)
+           .text(r.content, L + 18, ty, { width: W - 18, align: 'justify' });
+        ty = doc.y + 8;
 
-        if (images.length > 0) {
-          const colW = (W - 16) / 2;
-          const imgH = colW * 0.65;
+        // Photos in rows of 4
+        const imgs = r.fetchedImages;
+        const imgW = (W - 18) / 4 - 4;
+        const imgH = imgW * 0.75;
 
-          for (let i = 0; i < images.length; i += 2) {
-            if (y + imgH + 30 > doc.page.height - 80) { doc.addPage(); y = 60; }
-
-            for (let col = 0; col < 2; col++) {
-              const img = images[i + col];
-              if (!img) continue;
-              const x = 60 + col * (colW + 16);
-              try {
-                const buf = await fetchImageBuffer(img.url);
-                doc.image(buf, x, y, { width: colW, height: imgH, cover: [colW, imgH] });
-              } catch {
-                doc.rect(x, y, colW, imgH).fill(LIGHT);
-                doc.fillColor(GRAY).fontSize(8).text('[Image unavailable]', x + 4, y + imgH / 2 - 6, { width: colW - 8, align: 'center' });
-              }
-              if (img.caption) {
-                doc.fillColor(GRAY).font('Helvetica').fontSize(8)
-                   .text(img.caption, x, y + imgH + 3, { width: colW, align: 'center' });
-              }
+        for (let i = 0; i < imgs.length; i += 4) {
+          if (ty + imgH + 20 > doc.page.height - 72) { doc.addPage(); ty = 72; }
+          const row = imgs.slice(i, i + 4);
+          row.forEach((img, col) => {
+            const x = L + 18 + col * (imgW + 4);
+            try {
+              doc.image(img.buf, x, ty, { width: imgW, height: imgH, cover: [imgW, imgH] });
+            } catch {
+              doc.rect(x, ty, imgW, imgH).fill('#EEEEEE').stroke();
             }
-            y += imgH + (images[i]?.caption || images[i + 1]?.caption ? 26 : 12);
-          }
-          y += 8;
+          });
+          ty += imgH + 4;
+          // Captions
+          row.forEach((img, col) => {
+            if (img.caption) {
+              const x = L + 18 + col * (imgW + 4);
+              doc.font('Helvetica-Oblique').fontSize(7).fillColor('#555555')
+                 .text(img.caption, x, ty, { width: imgW, align: 'center' });
+            }
+          });
+          ty = doc.y + 8;
         }
 
-        // Divider between reports
-        doc.moveTo(60, y).lineTo(60 + W, y).strokeColor('#E2E8F0').lineWidth(1).stroke();
-        y += 16;
+        ty += 4;
+        entryNum++;
       }
     }
 
-    // ── SUMMARY PAGE ──────────────────────────────────────────
-    doc.addPage();
-    doc.rect(60, 60, W, 36).fill(BRAND);
-    doc.fillColor('white').font('Helvetica-Bold').fontSize(13)
-       .text('SUMMARY', 72, 71, { width: W - 24 });
+    // ── SIGNATURE BLOCK ───────────────────────────────────────────────────────
+    // Push to near bottom if space allows, else new page
+    const sigH = 200;
+    if (ty + sigH > doc.page.height - 72) { doc.addPage(); ty = 72; }
+    else { ty += 40; }
 
-    let sy = 116;
-    const totalReports = opts.activities.reduce((s, a) => s + a.reports.length, 0);
-    const totalPhotos  = opts.activities.reduce((s, a) => s + a.reports.reduce((r, rep) => r + rep.attachments.length, 0), 0);
+    doc.font('Helvetica').fontSize(11).fillColor('black')
+       .text('Prepared by:', L, ty);
+    ty += 28;
 
-    const summaryRows = [
-      ['Total Activities', String(opts.activities.length)],
-      ['Total Reports Submitted', String(totalReports)],
-      ['Total Photos', String(totalPhotos)],
-      ['Event Period', `${start} – ${end}`],
-    ];
+    doc.font('Helvetica-Bold').fontSize(11).text(presidentName, L, ty);
+    ty += 16;
+    doc.font('Helvetica-Oblique').fontSize(11).text('CICSSO President', L, ty);
+    ty += 32;
 
-    for (const [label, value] of summaryRows) {
-      doc.fillColor(GRAY).font('Helvetica').fontSize(10).text(label, 60, sy, { width: W / 2 });
-      doc.fillColor('#1E293B').font('Helvetica-Bold').fontSize(10).text(value, 60 + W / 2, sy);
-      sy += 22;
-    }
+    doc.font('Helvetica-Bold').fontSize(11).text(secretaryName, L, ty);
+    ty += 16;
+    doc.font('Helvetica-Oblique').fontSize(11).text('CICSSO Secretary', L, ty);
+    ty += 32;
 
-    // Signature block
-    sy += 40;
-    doc.moveTo(60, sy).lineTo(220, sy).strokeColor('#1E293B').lineWidth(0.5).stroke();
-    doc.moveTo(W - 100, sy).lineTo(W + 60, sy).stroke();
-    
-    doc.fillColor('#1E293B').font('Helvetica-Bold').fontSize(9)
-       .text(opts.presidentName ?? '', 60, sy - 12, { width: 160, align: 'center' })
-       .text(opts.secretaryName ?? '', W - 100, sy - 12, { width: 160, align: 'center' });
+    doc.font('Helvetica').fontSize(11).text('Noted by:', L, ty);
+    ty += 28;
+    doc.font('Helvetica-Bold').fontSize(11).text('MS. DOREENA JOY C. BORJA', L, ty);
+    ty += 16;
+    doc.font('Helvetica-Oblique').fontSize(11).text('CICSSO Adviser', L, ty);
+    ty += 32;
 
-    doc.font('Helvetica').fontSize(9)
-       .text('President', 60, sy + 6, { width: 160, align: 'center' })
-       .text('Secretary', W - 100, sy + 6, { width: 160, align: 'center' });
+    doc.font('Helvetica').fontSize(11).text('Recommending Approval:', L, ty);
+    ty += 28;
+    doc.font('Helvetica-Bold').fontSize(11).text('DR. RONJIE MAR L. MALINAO', L, ty);
+    ty += 16;
+    doc.font('Helvetica-Oblique').fontSize(11).text('Dean, College of Information and Computing Sciences', L, ty);
 
     doc.end();
-
   });
 }
