@@ -20,10 +20,59 @@ interface Props { report: Report; onClick: () => void }
 export function ReportCard({ report, onClick }: Props) {
   const status = report.status ?? 'Submitted';
   const cfg    = STATUS_CONFIG[status];
-  const thumbs = (report.report_attachments ?? []).slice(0, 3);
+  const attachments = report.report_attachments ?? [];
   const author = report.profiles
     ? `${report.profiles.first_name} ${report.profiles.last_name}`
     : '—';
+
+  // ── Thumbnail Grid Logic ───────────────────────────────────────────────────
+  const renderThumbnails = () => {
+    if (attachments.length === 0) return null;
+
+    const count = attachments.length;
+    const moreCount = count > 4 ? count - 4 : 0;
+    const gridThumbs = attachments.slice(0, 4);
+
+    return (
+      <div className="relative h-32 sm:h-40 ml-1 overflow-hidden rounded-tr-2xl">
+        {count === 1 && (
+          <img src={attachments[0].url} className="w-full h-full object-cover" alt="" />
+        )}
+
+        {count === 2 && (
+          <div className="grid grid-cols-2 gap-0.5 h-full">
+            <img src={attachments[0].url} className="w-full h-full object-cover" alt="" />
+            <img src={attachments[1].url} className="w-full h-full object-cover" alt="" />
+          </div>
+        )}
+
+        {count === 3 && (
+          <div className="grid grid-cols-2 gap-0.5 h-full">
+            <img src={attachments[0].url} className="w-full h-full object-cover" alt="" />
+            <div className="grid grid-rows-2 gap-0.5">
+              <img src={attachments[1].url} className="w-full h-full object-cover" alt="" />
+              <img src={attachments[2].url} className="w-full h-full object-cover" alt="" />
+            </div>
+          </div>
+        )}
+
+        {count >= 4 && (
+          <div className="grid grid-cols-2 grid-rows-2 gap-0.5 h-full">
+            {gridThumbs.map((a, i) => (
+              <div key={i} className="relative w-full h-full">
+                <img src={a.url} className="w-full h-full object-cover" alt="" />
+                {i === 3 && moreCount > 0 && (
+                  <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center backdrop-blur-[2px]">
+                    <span className="text-white font-bold text-sm">+{moreCount + 1}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div
@@ -36,24 +85,8 @@ export function ReportCard({ report, onClick }: Props) {
       {/* Status bar */}
       <div className={cn('absolute left-0 top-0 w-1 h-full', cfg.bar)} />
 
-      {/* Thumbnail strip */}
-      {thumbs.length > 0 && (
-        <div className="flex gap-0.5 h-24 sm:h-28 ml-1">
-          {thumbs.map((a, i) => (
-            <img
-              key={i}
-              src={a.url}
-              alt={a.caption ?? ''}
-              className={cn('object-cover flex-1', i === 0 && thumbs.length === 1 && 'rounded-tr-2xl', thumbs.length > 1 && i === thumbs.length - 1 && 'rounded-tr-2xl')}
-            />
-          ))}
-          {(report.report_attachments?.length ?? 0) > 3 && (
-            <div className="w-8 sm:w-10 bg-slate-800/60 flex items-center justify-center text-white text-xs font-bold rounded-tr-2xl">
-              +{(report.report_attachments?.length ?? 0) - 3}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Grid Thumbnails */}
+      {renderThumbnails()}
 
       <div className="p-3 sm:p-4 pl-4 sm:pl-5 flex flex-col gap-2 flex-1">
         {/* Badges */}

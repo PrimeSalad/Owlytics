@@ -10,11 +10,8 @@ export async function getNotifications(req: Request, res: Response) {
     .order('created_at', { ascending: false })
     .limit(50);
 
-  if (error) {
-    throw new AppError(500, error.message);
-  }
-
-  return res.json(data || []);
+  if (error) throw new AppError(500, error.message);
+  res.json(data);
 }
 
 export async function markAsRead(req: Request, res: Response) {

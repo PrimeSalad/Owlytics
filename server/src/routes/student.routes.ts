@@ -1,18 +1,18 @@
 import { Router } from 'express';
-import {
-  listStudents, listSections, createStudent, importStudents, bulkCreateStudents,
+import { listStudents, listSections, createStudent, importStudents, bulkCreateStudents,
   getStudent, updateStudent, deleteStudent, getStudentQR,
 } from '../controllers/student.controller';
 import { requireAuth } from '../middleware/requireAuth';
 import { requireRole } from '../middleware/requireRole';
 import { upload } from '../middleware/upload';
+import { filterByAssignedSection } from '../middleware/requireSectionAccess';
 
 export const studentRouter = Router();
 
 studentRouter.use(requireAuth);
 
 studentRouter.get('/sections', requireRole('Secretary', 'Officer', 'President'), listSections);
-studentRouter.get('/', requireRole('Secretary', 'Officer', 'President'), listStudents);
+studentRouter.get('/', requireRole('Secretary', 'Officer', 'President', 'Attendance'), filterByAssignedSection, listStudents);
 studentRouter.post('/', requireRole('President', 'Secretary'), createStudent);
 studentRouter.post('/bulk', requireRole('President', 'Secretary'), bulkCreateStudents);
 studentRouter.post('/import', requireRole('President', 'Secretary'), upload.single('file'), importStudents);

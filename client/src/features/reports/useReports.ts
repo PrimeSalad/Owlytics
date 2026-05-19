@@ -59,6 +59,17 @@ export function useCreateReport() {
   });
 }
 
+export function useUpdateReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Report> }) => api.patch(`/reports/${id}`, data),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['reports'] });
+      qc.invalidateQueries({ queryKey: ['report', variables.id] });
+    },
+  });
+}
+
 export function useDeleteReport() {
   const qc = useQueryClient();
   return useMutation({
@@ -69,8 +80,8 @@ export function useDeleteReport() {
 
 export function useCompileReport() {
   return useMutation({
-    mutationFn: async ({ eventId, ...options }: { 
-      eventId: string; 
+    mutationFn: async ({ eventIds, ...options }: { 
+      eventIds: string[]; 
       sectionOrder: string[]; 
       isFinal: boolean;
       presidentName?: string;
@@ -79,10 +90,10 @@ export function useCompileReport() {
       orgName?: string;
       preparedBy?: string;
     }) => {
-      const res = await api.post(`/reports/compile/${eventId}`, options, { responseType: 'blob' });
+      const res = await api.post(`/reports/compile`, { eventIds, ...options }, { responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a');
-      a.href = url; a.download = `accomplishment-${eventId}.pdf`; a.click();
+      a.href = url; a.download = `accomplishment-combined.pdf`; a.click();
       URL.revokeObjectURL(url);
     },
   });
@@ -90,8 +101,8 @@ export function useCompileReport() {
 
 export function useCompileReportWord() {
   return useMutation({
-    mutationFn: async ({ eventId, ...options }: { 
-      eventId: string; 
+    mutationFn: async ({ eventIds, ...options }: { 
+      eventIds: string[]; 
       sectionOrder: string[]; 
       isFinal: boolean;
       presidentName?: string;
@@ -100,10 +111,10 @@ export function useCompileReportWord() {
       orgName?: string;
       preparedBy?: string;
     }) => {
-      const res = await api.post(`/reports/compile-word/${eventId}`, options, { responseType: 'blob' });
+      const res = await api.post(`/reports/compile-word`, { eventIds, ...options }, { responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
       const a = document.createElement('a');
-      a.href = url; a.download = `accomplishment-${eventId}.docx`; a.click();
+      a.href = url; a.download = `accomplishment-combined.docx`; a.click();
       URL.revokeObjectURL(url);
     },
   });

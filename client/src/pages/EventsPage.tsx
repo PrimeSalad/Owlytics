@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, CalendarDays, MapPin, Clock } from 'lucide-react';
 
@@ -38,6 +38,14 @@ export function EventsPage() {
   const [editEvent, setEditEvent] = useState<Event | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addActivityFor, setAddActivityFor] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const eventId = params.get('eventId');
+    if (eventId) {
+      setExpandedId(eventId);
+    }
+  }, []);
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['events', statusFilter],
@@ -297,4 +305,3 @@ function ActivityFormModal({ open, eventId, onClose, onSuccess }: { open: boolea
     </Modal>
   );
 }
-

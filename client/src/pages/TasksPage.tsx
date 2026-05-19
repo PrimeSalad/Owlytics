@@ -218,7 +218,6 @@ export function TasksPage() {
     setMsgIndex(0);
     const t = setInterval(() => setMsgIndex((i) => (i + 1) % mascotLines.length), 4000);
     return () => clearInterval(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sprints.length]);
 
   // ── Sprint Selector Screen ────────────────────────────────

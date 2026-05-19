@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  listReports, createReport, getReport,
+  listReports, createReport, getReport, updateReport,
   approveReport, rejectReport, resolveReport,
   compileAccomplishment, compileAccomplishmentWord, listExports, deleteReport, exportSingleReport
 } from '../controllers/report.controller';
@@ -13,6 +13,8 @@ reportRouter.use(requireAuth);
 
 // Specific routes before /:id
 reportRouter.get('/exports/:eventId',       requireRole('Secretary', 'President'), listExports);
+reportRouter.post('/compile',               requireRole('Secretary', 'President'), compileAccomplishment);
+reportRouter.post('/compile-word',          requireRole('Secretary', 'President'), compileAccomplishmentWord);
 reportRouter.post('/compile/:eventId',      requireRole('Secretary', 'President'), compileAccomplishment);
 reportRouter.post('/compile-word/:eventId', requireRole('Secretary', 'President'), compileAccomplishmentWord);
 
@@ -20,6 +22,7 @@ reportRouter.get('/',                  listReports);
 reportRouter.post('/', upload.array('images', 5), createReport);
 
 reportRouter.get('/:id',               getReport);
+reportRouter.patch('/:id',              updateReport);
 reportRouter.get('/:id/export-pdf',    exportSingleReport);
 reportRouter.delete('/:id',            deleteReport);
 reportRouter.patch('/:id/approve',     requireRole('Officer', 'Secretary', 'President'), approveReport);

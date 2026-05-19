@@ -80,7 +80,26 @@ export async function updateEvent(req: Request, res: Response) {
 }
 
 export async function deleteEvent(req: Request, res: Response) {
-  await supabase.from('events').delete().eq('id', req.params.id);
+  const eventId = req.params.id;
+
+  // 1. Delete accomplishment exports related to this event
+  await supabase.from('accomplishment_exports').delete().eq('event_id', eventId);
+
+  // 2. Delete attendance records for this event
+  await supabase.from('attendance_records').delete().eq('event_id', eventId);
+
+  // 3. Delete reports for this event (report_attachments should cascade)
+  await supabase.from('reports').delete().eq('event_id', eventId);
+
+  // 4. Activities, event_officers, attendance_schedules, attendance_sessions 
+  // are configured to cascade delete when the event is deleted in the schema.
+  
+  const { error } = await supabase.from('events').delete().eq('id', eventId);
+  
+  if (error) {
+    throw new AppError(500, `Could not delete event due to database constraints: ${error.message}`);
+  }
+
   res.json({ message: 'Event deleted' });
 }
 

@@ -21,6 +21,7 @@ import {
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import JSZip from 'jszip';
 import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
 import { Badge, Button, Card, CardBody, Input, Modal, Spinner } from '@/components/ui';
@@ -61,6 +62,7 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [qrStudent, setQrStudent] = useState<Student | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const { data: sections = [], refetch: refetchSections } = useQuery({
     queryKey: ['student-sections'],
@@ -183,6 +185,92 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
     }
   };
 
+  const handleDownloadZip = async () => {
+    try {
+      setIsDownloading(true);
+      const params = new URLSearchParams({ limit: '5000' });
+      if (search.trim()) params.set('search', search.trim());
+      if (yearFilter) params.set('yearLevel', yearFilter);
+      if (sectionFilter) params.set('section', sectionFilter);
+      
+      const { data } = await api.get(`/students?${params}`);
+      const allFiltered: Student[] = data.students;
+
+      if (allFiltered.length === 0) {
+        toast.error('No students to download');
+        return;
+      }
+
+      toast.loading('Generating ZIP file...', { id: 'zip' });
+
+      const zip = new JSZip();
+
+      // Create a canvas once to draw names
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas not supported');
+
+      canvas.width = 300;
+      canvas.height = 350;
+
+      for (const student of allFiltered) {
+        const qrData = `SMS|${student.studentId}|${student.name.first} ${student.name.last}|${student.section}`;
+        const qrDataUrl = await QRCode.toDataURL(qrData, {
+          width: 300,
+          margin: 2,
+          color: { dark: '#000000', light: '#ffffff' },
+          errorCorrectionLevel: 'H',
+        });
+
+        // Draw everything on canvas
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Load QR image
+        const img = new Image();
+        img.src = qrDataUrl;
+        await new Promise((resolve) => { img.onload = () => resolve(true); });
+        ctx.drawImage(img, 0, 0, 300, 300);
+
+        // Draw text
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        const fullName = `${student.name.first} ${student.name.last}`;
+        ctx.fillText(fullName, 150, 305);
+        
+        ctx.font = '14px sans-serif';
+        ctx.fillStyle = '#64748b';
+        ctx.fillText(`${student.studentId} • ${student.section}`, 150, 328);
+
+        // Convert canvas to blob
+        const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.9));
+
+        // Add to zip, organized by section folder
+        const sectionFolder = zip.folder(student.section || 'Unassigned');
+        sectionFolder?.file(`${student.studentId} - ${student.name.last}.jpg`, blob);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = window.URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `QR_Codes_${sectionFilter || 'All_Sections'}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('ZIP downloaded!', { id: 'zip' });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to generate ZIP', { id: 'zip' });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const students = data?.students ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -195,51 +283,57 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
         <DirectoryMetric label="Page" value={page} icon={Search} />
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex w-full flex-col gap-2 sm:flex-row lg:max-w-3xl">
-          <div className="relative flex-1">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+          <div className="relative flex-1 sm:w-64">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search name or student ID"
-              className="h-10 w-full rounded-lg border border-surface-border bg-white pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              placeholder="Search name or ID..."
+              className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20"
             />
           </div>
 
-          {/* Section filter */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <select
               value={sectionFilter}
               onChange={(e) => { setSectionFilter(e.target.value); setPage(1); }}
-              className="h-10 rounded-lg border border-surface-border bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20"
             >
               <option value="">All sections</option>
               {sections.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-          </div>
 
-          <select
-            value={yearFilter}
-            onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}
-            className="h-10 rounded-lg border border-surface-border bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-          >
-            <option value="">All years</option>
-            {[1, 2, 3, 4].map((y) => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
-          </select>
+            <select
+              value={yearFilter}
+              onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}
+              className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20"
+            >
+              <option value="">All years</option>
+              {[1, 2, 3, 4].map((y) => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
+            </select>
+          </div>
         </div>
 
         {canManageStudents ? (
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button onClick={handlePrintFiltered} variant="secondary" loading={isPrinting} className="w-full sm:w-auto">
-              <Printer className="mr-2 h-4 w-4" /> Print QRs
-            </Button>
-            <Button onClick={() => setBulkOpen(true)} variant="secondary" className="w-full sm:w-auto">
-              <Users2 className="mr-2 h-4 w-4" /> Bulk Add
-            </Button>
-            <Button onClick={() => setAddOpen(true)} className="w-full sm:w-auto">
-              <UserPlus className="mr-2 h-4 w-4" /> Add Student
-            </Button>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <div className="flex gap-2 w-full sm:w-auto border-b sm:border-b-0 sm:border-r border-slate-200 pb-2 sm:pb-0 sm:pr-2">
+              <Button onClick={handlePrintFiltered} variant="secondary" size="sm" loading={isPrinting} className="flex-1 sm:flex-none">
+                <Printer className="mr-1.5 h-3.5 w-3.5" /> Print
+              </Button>
+              <Button onClick={handleDownloadZip} variant="secondary" size="sm" loading={isDownloading} className="flex-1 sm:flex-none">
+                <Download className="mr-1.5 h-3.5 w-3.5" /> ZIP
+              </Button>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button onClick={() => setBulkOpen(true)} variant="secondary" size="sm" className="flex-1 sm:flex-none">
+                <Users2 className="mr-1.5 h-3.5 w-3.5" /> Bulk
+              </Button>
+              <Button onClick={() => setAddOpen(true)} size="sm" className="flex-1 sm:flex-none">
+                <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Add
+              </Button>
+            </div>
           </div>
         ) : (
           <Badge variant="default" className="w-fit">Directory view</Badge>
@@ -699,11 +793,7 @@ function StudentFormModal({
 
 const COURSES = ['BSI/T', 'BSIS'];
 const YEARS = [1, 2, 3, 4];
-const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
-
-const DEFAULT_SECTION_OPTIONS = COURSES.flatMap((course) =>
-  YEARS.flatMap((year) => LETTERS.map((letter) => `${course} ${year}-${letter}`))
-);
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
 function SectionPicker({
   value,
@@ -716,100 +806,74 @@ function SectionPicker({
   error?: string;
   onChange: (val: string) => void;
 }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [newSection, setNewSection] = useState('');
+  // Parse existing value e.g. "BSIT 3-A" → course=BSIT, year=3, letter=A
+  const parse = (v = '') => {
+    const m = v.match(/^([A-Z/]+)\s+(\d)-([A-G])$/);
+    return m ? { course: m[1], year: m[2], letter: m[3] } : { course: '', year: '', letter: '' };
+  };
 
-  const [managedSections, setManagedSections] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem('owlytics_sections');
-      if (stored) return JSON.parse(stored);
-    } catch (e) {
-      // Ignore parsing errors and fallback to defaults
+  const [parts, setParts] = useState(() => parse(value));
+
+  const update = (next: typeof parts) => {
+    setParts(next);
+    if (next.course && next.year && next.letter) {
+      onChange(`${next.course} ${next.year}-${next.letter}`);
     }
-    return DEFAULT_SECTION_OPTIONS;
-  });
-
-  const saveSections = (sections: string[]) => {
-    setManagedSections(sections);
-    localStorage.setItem('owlytics_sections', JSON.stringify(sections));
   };
 
-  const handleAdd = () => {
-    const trimmed = newSection.trim().toUpperCase();
-    if (trimmed && !managedSections.includes(trimmed)) {
-      saveSections([...managedSections, trimmed].sort());
-    }
-    setNewSection('');
-  };
+  const sel = 'h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 cursor-pointer';
 
-  const handleRemove = (sec: string) => {
-    saveSections(managedSections.filter((s) => s !== sec));
-    if (value === sec) onChange('');
-  };
-
-  const sel =
-    'h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 cursor-pointer';
+  const preview = parts.course && parts.year && parts.letter
+    ? `${parts.course} ${parts.year}-${parts.letter}` : '';
 
   return (
-    <div className="relative">
-      <div className="mb-1.5 flex items-center justify-between">
-        <label className="block text-xs font-medium text-slate-600">
-          Section <span className="text-danger-500">*</span>
-        </label>
-        <button
-          type="button"
-          onClick={() => setIsEditing(!isEditing)}
-          className="text-[10px] font-bold text-brand-600 hover:text-brand-700 uppercase tracking-wider"
-        >
-          {isEditing ? 'Done' : 'Edit Options'}
-        </button>
-      </div>
+    <div>
+      <label className="mb-1.5 block text-xs font-medium text-slate-600">
+        Section <span className="text-danger-500">*</span>
+      </label>
 
-      {isEditing ? (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newSection}
-              onChange={(e) => setNewSection(e.target.value)}
-              placeholder="e.g. BSI/T 5-A"
-              className="h-8 flex-1 rounded border border-slate-200 px-2 text-xs outline-none focus:border-brand-500"
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdd())}
-            />
-            <Button type="button" size="sm" onClick={handleAdd}>
-              Add
-            </Button>
-          </div>
-          <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
-            {managedSections.map((opt) => (
-              <div key={opt} className="flex items-center justify-between rounded bg-white px-2 py-1.5 border border-slate-100 shadow-sm">
-                <span className="text-xs font-medium text-slate-700">{opt}</span>
-                <button type="button" onClick={() => handleRemove(opt)} className="text-slate-400 hover:text-danger-500">
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
-            {managedSections.length === 0 && (
-              <p className="text-xs text-slate-400 text-center py-2">No options.</p>
-            )}
-          </div>
-        </div>
-      ) : (
-        <select
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          className={sel}
-        >
-          <option value="">Select Section</option>
-          {managedSections.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
+      {existingSections.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {existingSections.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => { setParts(parse(s)); onChange(s); }}
+              className={cn(
+                'rounded-lg border px-3 py-1.5 text-sm font-semibold transition-all',
+                preview === s
+                  ? 'border-brand-500 bg-brand-500 text-white shadow-sm'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-700',
+              )}
+            >
+              {s}
+            </button>
           ))}
-        </select>
+        </div>
       )}
 
-      {error && !isEditing && <p className="mt-1 text-xs text-danger-500">{error}</p>}
+      <div className="grid grid-cols-3 gap-2">
+        <select value={parts.course} onChange={(e) => update({ ...parts, course: e.target.value })} className={sel}>
+          <option value="">Course</option>
+          {COURSES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={parts.year} onChange={(e) => update({ ...parts, year: e.target.value })} className={sel}>
+          <option value="">Year</option>
+          {YEARS.map((y) => <option key={y} value={String(y)}>{y}</option>)}
+        </select>
+        <select value={parts.letter} onChange={(e) => update({ ...parts, letter: e.target.value })} className={sel}>
+          <option value="">Block</option>
+          {LETTERS.map((l) => <option key={l} value={l}>{l}</option>)}
+        </select>
+      </div>
+
+      {preview && (
+        <div className="flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2">
+          <span className="text-xs text-slate-500">Selected:</span>
+          <span className="font-bold text-brand-700">{preview}</span>
+        </div>
+      )}
+      {error && <p className="text-xs text-danger-500">{error}</p>}
     </div>
   );
 }
