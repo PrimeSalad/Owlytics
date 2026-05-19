@@ -24,6 +24,7 @@ export async function listUsers(_req: Request, res: Response) {
         academic_year,
         block,
         courses (
+          course_code,
           course_name
         )
       )
@@ -65,13 +66,7 @@ export async function listUsers(_req: Request, res: Response) {
     let assignedSection = null;
     if (p.section_id && p.sections) {
       const section = p.sections;
-      const yearLabel = 
-        section.academic_year === 1 ? '1st Year' : 
-        section.academic_year === 2 ? '2nd Year' : 
-        section.academic_year === 3 ? '3rd Year' : 
-        section.academic_year === 4 ? '4th Year' : 
-        `${section.academic_year}th Year`;
-      assignedSection = `${section.courses.course_name} - ${yearLabel} - ${section.academic_year}-${section.block}`;
+      assignedSection = `${section.courses.course_code} ${section.academic_year}-${section.block}`;
     }
     
     return {

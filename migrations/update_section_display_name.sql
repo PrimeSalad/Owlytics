@@ -1,4 +1,4 @@
--- Update section_details view to match requested "smart" display format
+-- Update section_details view to match requested simpler display format: "CourseCode Year-Block"
 create or replace view section_details as
 select
   s.id,
@@ -10,16 +10,8 @@ select
   s.total_students,
   s.is_active,
   concat(
-    c.course_name, 
-    ' - ', 
-    case 
-      when s.academic_year = 1 then '1st Year'
-      when s.academic_year = 2 then '2nd Year'
-      when s.academic_year = 3 then '3rd Year'
-      when s.academic_year = 4 then '4th Year'
-      else s.academic_year || 'th Year'
-    end,
-    ' - ',
+    c.course_code, 
+    ' ', 
     s.academic_year,
     '-',
     s.block
