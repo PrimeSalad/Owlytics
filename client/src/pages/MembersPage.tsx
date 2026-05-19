@@ -406,6 +406,136 @@ const DEFAULT_SECTION_OPTIONS = COURSES.flatMap((course) =>
   YEARS.flatMap((year) => LETTERS.map((letter) => `${course} ${year}-${letter}`))
 );
 
+function MultiSectionPicker({
+  selectedSections,
+  error,
+  onChange,
+}: {
+  selectedSections: string[];
+  error?: string;
+  onChange: (vals: string[]) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [newSection, setNewSection] = useState('');
+
+  const [managedSections, setManagedSections] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('owlytics_sections');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {
+      // Ignore
+    }
+    return DEFAULT_SECTION_OPTIONS;
+  });
+
+  const saveSections = (sections: string[]) => {
+    setManagedSections(sections);
+    localStorage.setItem('owlytics_sections', JSON.stringify(sections));
+  };
+
+  const handleAddOption = () => {
+    const trimmed = newSection.trim().toUpperCase();
+    if (trimmed && !managedSections.includes(trimmed)) {
+      saveSections([...managedSections, trimmed].sort());
+    }
+    setNewSection('');
+  };
+
+  const handleRemoveOption = (sec: string) => {
+    saveSections(managedSections.filter((s) => s !== sec));
+    if (selectedSections.includes(sec)) {
+      onChange(selectedSections.filter((s) => s !== sec));
+    }
+  };
+
+  const handleSelectSection = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    if (val && !selectedSections.includes(val)) {
+      onChange([...selectedSections, val]);
+    }
+    e.target.value = ''; // Reset select
+  };
+
+  const handleRemoveSelected = (sec: string) => {
+    onChange(selectedSections.filter((s) => s !== sec));
+  };
+
+  return (
+    <div className="relative">
+      <div className="mb-1.5 flex items-center justify-between">
+        <label className="block text-xs font-medium text-slate-600">Assigned Sections</label>
+        <button
+          type="button"
+          onClick={() => setIsEditing(!isEditing)}
+          className="text-[10px] font-bold text-brand-600 hover:text-brand-700 uppercase tracking-wider"
+        >
+          {isEditing ? 'Done' : 'Edit Options'}
+        </button>
+      </div>
+
+      {isEditing ? (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newSection}
+              onChange={(e) => setNewSection(e.target.value)}
+              placeholder="e.g. BSI/T 5-A"
+              className="h-8 flex-1 rounded border border-slate-200 px-2 text-xs outline-none focus:border-brand-500"
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
+            />
+            <Button type="button" size="sm" onClick={handleAddOption}>
+              Add
+            </Button>
+          </div>
+          <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+            {managedSections.map((opt) => (
+              <div key={opt} className="flex items-center justify-between rounded bg-white px-2 py-1.5 border border-slate-100 shadow-sm">
+                <span className="text-xs font-medium text-slate-700">{opt}</span>
+                <button type="button" onClick={() => handleRemoveOption(opt)} className="text-slate-400 hover:text-danger-500">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+            {managedSections.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-2">No options.</p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <select
+            onChange={handleSelectSection}
+            className="h-10 w-full rounded-lg border border-surface-border bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+            defaultValue=""
+          >
+            <option value="" disabled>Select a section to add...</option>
+            {managedSections.map((opt) => (
+              <option key={opt} value={opt} disabled={selectedSections.includes(opt)}>
+                {opt}
+              </option>
+            ))}
+          </select>
+          {selectedSections.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {selectedSections.map((sec) => (
+                <span key={sec} className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-[11px] font-bold text-brand-700 border border-brand-100">
+                  {sec}
+                  <button type="button" onClick={() => handleRemoveSelected(sec)} className="ml-1 text-brand-400 hover:text-brand-600">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {error && !isEditing && <p className="mt-1 text-xs text-danger-500">{error}</p>}
+    </div>
+  );
+}
+
 function EditMemberModal({
   user,
   onClose,
@@ -430,16 +560,6 @@ function EditMemberModal({
   
   const selectedRole = watch('role');
 
-  const [managedSections] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem('owlytics_sections');
-      if (stored) return JSON.parse(stored);
-    } catch (e) {
-      // Ignore
-    }
-    return DEFAULT_SECTION_OPTIONS;
-  });
-
   const [selectedSections, setSelectedSections] = useState<string[]>(
     user.assignedSection ? user.assignedSection.split(',').map(s => s.trim()).filter(Boolean) : []
   );
@@ -447,18 +567,6 @@ function EditMemberModal({
   useEffect(() => {
     setValue('assignedSection', selectedSections.length > 0 ? selectedSections.join(', ') : null, { shouldValidate: true });
   }, [selectedSections, setValue]);
-
-  const handleAddSection = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    if (val && !selectedSections.includes(val)) {
-      setSelectedSections([...selectedSections, val]);
-    }
-    e.target.value = '';
-  };
-
-  const handleRemoveSection = (sec: string) => {
-    setSelectedSections(selectedSections.filter(s => s !== sec));
-  };
 
   return (
     <Modal
@@ -483,34 +591,11 @@ function EditMemberModal({
         
         {selectedRole === 'Attendance' && (
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-slate-600">Assigned Sections</label>
-            <div className="space-y-2">
-              <select
-                onChange={handleAddSection}
-                className="h-10 w-full rounded-lg border border-surface-border bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-                defaultValue=""
-              >
-                <option value="" disabled>Select a section to add...</option>
-                {managedSections.map((opt) => (
-                  <option key={opt} value={opt} disabled={selectedSections.includes(opt)}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-              {selectedSections.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedSections.map((sec) => (
-                    <span key={sec} className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-[11px] font-bold text-brand-700 border border-brand-100">
-                      {sec}
-                      <button type="button" onClick={() => handleRemoveSection(sec)} className="ml-1 text-brand-400 hover:text-brand-600">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-            {errors.assignedSection && <p className="mt-1 text-xs text-danger">{errors.assignedSection.message}</p>}
+            <MultiSectionPicker
+              selectedSections={selectedSections}
+              error={errors.assignedSection?.message}
+              onChange={setSelectedSections}
+            />
             {/* Hidden input to register the value */}
             <input type="hidden" {...register('assignedSection')} />
           </div>
