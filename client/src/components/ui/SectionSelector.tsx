@@ -156,7 +156,7 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                             <span className="text-xs text-slate-500 font-medium">{section.course_name}</span>
-                            <span className="text-xs font-semibold text-slate-600">Year {section.academic_year} - Block {section.block}</span>
+                            <span className="text-xs font-semibold text-slate-600">{['1st', '2nd', '3rd', '4th'][section.academic_year - 1]} Year - Section {section.block}</span>
                           </div>
                           <span className={cn(
                             'text-xs font-bold px-2 py-1 rounded-md whitespace-nowrap transition-colors',
