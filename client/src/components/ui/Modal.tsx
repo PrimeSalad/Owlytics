@@ -32,7 +32,7 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
         <Dialog.Content
           className={cn(
             'fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2',
-            'rounded-2xl bg-white shadow-2xl p-6 sm:p-8 border border-slate-100 animate-fade-in overflow-hidden',
+            'rounded-2xl bg-white shadow-2xl p-6 sm:p-8 border border-slate-100 animate-fade-in',
             sizeMap[size],
             className
           )}
