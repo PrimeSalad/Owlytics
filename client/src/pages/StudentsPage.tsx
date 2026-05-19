@@ -831,7 +831,7 @@ function makeRow(id: number): BulkRow {
   return { id, studentId: '', firstName: '', lastName: '', email: '' };
 }
 
-/** Derive yearLevel from section string e.g. "BSIT 3-A" → 3 */
+/** Derive yearLevel from section string e.g. "BSI/T 3-A" → 3 */
 function yearFromSection(section: string): number {
   const m = section.match(/\s(\d)-/);
   return m ? Number(m[1]) : 1;

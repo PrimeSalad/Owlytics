@@ -19,7 +19,7 @@ async function run() {
     first_name: 'Sample',
     last_name: 'Student',
     email: 'sample.student@university.edu.ph',
-    section: 'BSIT ' + s.academic_year + '-' + s.block,
+    section: 'BSI/T ' + s.academic_year + '-' + s.block,
     year_level: s.academic_year,
     section_id: s.id
   }]);

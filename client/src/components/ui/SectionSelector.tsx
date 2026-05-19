@@ -150,7 +150,7 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
                         )}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-bold">{section.course_code === 'BSIT' ? 'BSI/T' : section.course_code}</span>
+                          <span className="text-sm font-bold">{section.course_code === 'BSI/T' ? 'BSI/T' : section.course_code}</span>
                           {isActive && <Check className="h-4 w-4 text-brand-600" />}
                         </div>
                         <div className="flex items-center justify-between gap-2">

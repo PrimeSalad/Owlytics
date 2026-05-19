@@ -38,11 +38,11 @@ async function seedStudents() {
 
   console.log(`📍 Found ${sections.length} sections.`);
 
-  // Get courses to filter by BSIS and BSIT
+  // Get courses to filter by BSIS and BSI/T
   const { data: courses, error: courseError } = await supabase
     .from('courses')
     .select('id, course_code')
-    .in('course_code', ['BSIS', 'BSIT']);
+    .in('course_code', ['BSIS', 'BSI/T']);
 
   if (courseError || !courses || courses.length === 0) {
     console.error('❌ Error fetching courses:', courseError);
@@ -53,11 +53,11 @@ async function seedStudents() {
   const filteredSections = sections.filter(s => courseIds.includes(s.course_id));
 
   if (filteredSections.length === 0) {
-    console.error('❌ No sections found for BSIS and BSIT courses');
+    console.error('❌ No sections found for BSIS and BSI/T courses');
     return;
   }
 
-  console.log(`📍 Found ${filteredSections.length} BSIS/BSIT sections.`);
+  console.log(`📍 Found ${filteredSections.length} BSIS/BSI/T sections.`);
 
   const firstNames = ['Juan', 'Maria', 'Jose', 'Elena', 'Ricardo', 'Liza', 'Antonio', 'Teresa', 'Miguel', 'Carmela', 'Mark', 'John', 'Sarah', 'Jessica', 'David', 'James', 'Robert', 'Michael', 'William', 'Karen'];
   const lastNames = ['Dela Cruz', 'Santos', 'Reyes', 'Garcia', 'Bautista', 'Mendoza', 'Pascual', 'Aquino', 'Villanueva', 'Lim', 'Tan', 'Go', 'Sy', 'Abad', 'Cruz', 'Lopez', 'Hernandez', 'Torres', 'Perez', 'Gonzales'];
@@ -66,30 +66,50 @@ async function seedStudents() {
   const students = [];
   let studentCounter = 1;
 
-  for (let i = 0; i < 150; i++) {
-    const section = filteredSections[Math.floor(Math.random() * filteredSections.length)];
-    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-    const enrollmentYear = enrollmentYears[Math.floor(Math.random() * enrollmentYears.length)];
-    const courseCode = courses.find(c => courseIds.includes(section.course_id))?.course_code || 'BSIT';
+  // Separate sections by course
+  const bsisSections = filteredSections.filter(s => {
+    const course = courses.find(c => c.id === s.course_id);
+    return course?.course_code === 'BSIS';
+  });
+  
+  const bsitSections = filteredSections.filter(s => {
+    const course = courses.find(c => c.id === s.course_id);
+    return course?.course_code === 'BSI/T';
+  });
+
+  console.log(`   BSIS sections: ${bsisSections.length}, BSI/T sections: ${bsitSections.length}`);
+
+  // Generate 75 BSIS students and 75 BSI/T students
+  const studentsPerCourse = 75;
+  
+  for (let courseIdx = 0; courseIdx < 2; courseIdx++) {
+    const sectionsForCourse = courseIdx === 0 ? bsisSections : bsitSections;
+    const courseCode = courseIdx === 0 ? 'BSIS' : 'BSI/T';
     
-    // Generate student ID in format: 22B0940 (year + letter + numbers)
-    const blockLetter = section.block; // A-H
-    const studentNumber = String(studentCounter).padStart(4, '0');
-    const studentId = `${enrollmentYear}${blockLetter}${studentNumber}`;
-    studentCounter++;
+    for (let i = 0; i < studentsPerCourse; i++) {
+      const section = sectionsForCourse[Math.floor(Math.random() * sectionsForCourse.length)];
+      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+      const enrollmentYear = enrollmentYears[Math.floor(Math.random() * enrollmentYears.length)];
+      
+      // Generate student ID in format: 22B0940 (year + letter + numbers)
+      const blockLetter = section.block; // A-H
+      const studentNumber = String(studentCounter).padStart(4, '0');
+      const studentId = `${enrollmentYear}${blockLetter}${studentNumber}`;
+      studentCounter++;
 
-    const email = `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(' ', '')}${i}@university.edu.ph`;
+      const email = `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(' ', '')}${studentCounter}@university.edu.ph`;
 
-    students.push({
-      student_id: studentId,
-      first_name: firstName,
-      last_name: lastName,
-      email: email,
-      section: `${courseCode} ${section.academic_year}-${section.block}`,
-      year_level: section.academic_year,
-      section_id: section.id
-    });
+      students.push({
+        student_id: studentId,
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        section: `${courseCode} ${section.academic_year}-${section.block}`,
+        year_level: section.academic_year,
+        section_id: section.id
+      });
+    }
   }
 
   const { error: insertError } = await supabase
