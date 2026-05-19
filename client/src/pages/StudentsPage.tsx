@@ -619,6 +619,7 @@ function StudentFormModal({
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
     reset,
   } = useForm<FormData>({
@@ -633,6 +634,8 @@ function StudentFormModal({
         }
       : { section: defaultSection },
   });
+
+  const sectionValue = watch('section');
 
   const mutation = useMutation({
     mutationFn: (values: FormData) => {
@@ -679,7 +682,7 @@ function StudentFormModal({
           <Input label="Student ID" placeholder="2021-0001" required leftIcon={<Hash className="h-4 w-4" />} hint="Used for QR code generation and matching." error={errors.studentId?.message} {...register('studentId')} />
           <div className="grid gap-4 sm:grid-cols-2">
             <SectionPicker
-              value={student?.section ?? defaultSection}
+              value={sectionValue}
               existingSections={sections}
               error={errors.section?.message}
               onChange={(val) => setValue('section', val, { shouldValidate: true })}
