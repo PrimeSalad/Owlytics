@@ -38,7 +38,7 @@ export async function updateReport(req: Request, res: Response) {
 
   if (error) throw new AppError(400, error.message);
 
-  await logAction(req.user!.userId, 'UPDATE', 'REPORT', `Updated report ID: ${id}`, id);
+  await logAction(req.user!.userId, 'UPDATE', 'REPORT', `Updated report ID: ${id}`, typeof id === 'string' ? id : id[0]);
   res.json(updated);
 }
 
