@@ -1,6 +1,40 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
+import { env } from '../config/env';
 import { AppError } from '../middleware/errorHandler';
+
+function buildMockNotifications(recipientId: string) {
+  const now = Date.now();
+  return [
+    {
+      id: `mock-${recipientId}-1`,
+      recipient_id: recipientId,
+      type: 'System',
+      title: 'Welcome to Owlytics',
+      message: 'This is a mock announcement to validate the notifications UI.',
+      is_read: false,
+      created_at: new Date(now - 5 * 60 * 1000).toISOString(),
+    },
+    {
+      id: `mock-${recipientId}-2`,
+      recipient_id: recipientId,
+      type: 'EventUpdate',
+      title: 'Event Reminder',
+      message: 'General assembly starts in 30 minutes at the covered court.',
+      is_read: false,
+      created_at: new Date(now - 45 * 60 * 1000).toISOString(),
+    },
+    {
+      id: `mock-${recipientId}-3`,
+      recipient_id: recipientId,
+      type: 'AttendanceAlert',
+      title: 'Attendance Checkpoint',
+      message: 'QR attendance checkpoint has been opened for this session.',
+      is_read: true,
+      created_at: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+    },
+  ];
+}
 
 export async function getNotifications(req: Request, res: Response) {
   const { data, error } = await supabase
@@ -10,11 +44,20 @@ export async function getNotifications(req: Request, res: Response) {
     .order('created_at', { ascending: false })
     .limit(50);
 
+  const useMock = env.NODE_ENV !== 'production' || req.query.mock === '1';
+
   if (error) {
+    if (useMock) {
+      return res.json(buildMockNotifications(req.user!.userId));
+    }
     throw new AppError(500, error.message);
   }
 
-  return res.json(data || []);
+  if (useMock && (!data || data.length === 0)) {
+    return res.json(buildMockNotifications(req.user!.userId));
+  }
+
+  return res.json(data);
 }
 
 export async function markAsRead(req: Request, res: Response) {

@@ -7,7 +7,7 @@ import { logAction } from '../utils/auditLogger';
 export async function listUsers(_req: Request, res: Response) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, student_id, first_name, last_name, role, avatar_url, is_active, last_login, created_at, assigned_section')
+    .select('id, student_id, first_name, last_name, role, avatar_url, is_active, last_login, created_at')
     .order('created_at', { ascending: false });
 
   if (error) throw new AppError(500, error.message);
@@ -25,7 +25,7 @@ export async function listUsers(_req: Request, res: Response) {
     email: emailMap[p.id] ?? '',
     role: p.role,
     avatarUrl: p.avatar_url,
-    assignedSection: p.assigned_section,
+    assignedSection: null,
     isActive: p.is_active,
     lastLogin: p.last_login,
     createdAt: p.created_at,
@@ -116,7 +116,6 @@ export async function updateUser(req: Request, res: Response) {
   if (isPresident) {
     if (data.role) updatePayload.role = data.role;
     if (data.isActive !== undefined) updatePayload.is_active = data.isActive;
-    if (data.assignedSection !== undefined) updatePayload.assigned_section = data.assignedSection;
   } else {
     if (data.role || data.isActive !== undefined) {
       throw new AppError(403, 'You do not have permission to change roles or active status');
