@@ -697,9 +697,13 @@ function StudentFormModal({
 }
 
 
-const COURSES = ['BSIT', 'BSIS'];
+const COURSES = ['BSI/T', 'BSIS'];
 const YEARS = [1, 2, 3, 4];
-const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+
+const DEFAULT_SECTION_OPTIONS = COURSES.flatMap((course) =>
+  YEARS.flatMap((year) => LETTERS.map((letter) => `${course} ${year}-${letter}`))
+);
 
 function SectionPicker({
   value,
@@ -712,74 +716,100 @@ function SectionPicker({
   error?: string;
   onChange: (val: string) => void;
 }) {
-  // Parse existing value e.g. "BSIT 3-A" → course=BSIT, year=3, letter=A
-  const parse = (v = '') => {
-    const m = v.match(/^([A-Z]+)\s+(\d)-([A-G])$/);
-    return m ? { course: m[1], year: m[2], letter: m[3] } : { course: '', year: '', letter: '' };
-  };
+  const [isEditing, setIsEditing] = useState(false);
+  const [newSection, setNewSection] = useState('');
 
-  const [parts, setParts] = useState(() => parse(value));
-
-  const update = (next: typeof parts) => {
-    setParts(next);
-    if (next.course && next.year && next.letter) {
-      onChange(`${next.course} ${next.year}-${next.letter}`);
+  const [managedSections, setManagedSections] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('owlytics_sections');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {
+      // Ignore parsing errors and fallback to defaults
     }
+    return DEFAULT_SECTION_OPTIONS;
+  });
+
+  const saveSections = (sections: string[]) => {
+    setManagedSections(sections);
+    localStorage.setItem('owlytics_sections', JSON.stringify(sections));
   };
 
-  const sel = 'h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 cursor-pointer';
+  const handleAdd = () => {
+    const trimmed = newSection.trim().toUpperCase();
+    if (trimmed && !managedSections.includes(trimmed)) {
+      saveSections([...managedSections, trimmed].sort());
+    }
+    setNewSection('');
+  };
 
-  const preview = parts.course && parts.year && parts.letter
-    ? `${parts.course} ${parts.year}-${parts.letter}` : '';
+  const handleRemove = (sec: string) => {
+    saveSections(managedSections.filter((s) => s !== sec));
+    if (value === sec) onChange('');
+  };
+
+  const sel =
+    'h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 cursor-pointer';
 
   return (
-    <div>
-      <label className="mb-1.5 block text-xs font-medium text-slate-600">
-        Section <span className="text-danger-500">*</span>
-      </label>
-
-      {existingSections.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {existingSections.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => { setParts(parse(s)); onChange(s); }}
-              className={cn(
-                'rounded-lg border px-3 py-1.5 text-sm font-semibold transition-all',
-                preview === s
-                  ? 'border-brand-500 bg-brand-500 text-white shadow-sm'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-700',
-              )}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="grid grid-cols-3 gap-2">
-        <select value={parts.course} onChange={(e) => update({ ...parts, course: e.target.value })} className={sel}>
-          <option value="">Course</option>
-          {COURSES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <select value={parts.year} onChange={(e) => update({ ...parts, year: e.target.value })} className={sel}>
-          <option value="">Year</option>
-          {YEARS.map((y) => <option key={y} value={String(y)}>{y}</option>)}
-        </select>
-        <select value={parts.letter} onChange={(e) => update({ ...parts, letter: e.target.value })} className={sel}>
-          <option value="">Block</option>
-          {LETTERS.map((l) => <option key={l} value={l}>{l}</option>)}
-        </select>
+    <div className="relative">
+      <div className="mb-1.5 flex items-center justify-between">
+        <label className="block text-xs font-medium text-slate-600">
+          Section <span className="text-danger-500">*</span>
+        </label>
+        <button
+          type="button"
+          onClick={() => setIsEditing(!isEditing)}
+          className="text-[10px] font-bold text-brand-600 hover:text-brand-700 uppercase tracking-wider"
+        >
+          {isEditing ? 'Done' : 'Edit Options'}
+        </button>
       </div>
 
-      {preview && (
-        <div className="flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2">
-          <span className="text-xs text-slate-500">Selected:</span>
-          <span className="font-bold text-brand-700">{preview}</span>
+      {isEditing ? (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newSection}
+              onChange={(e) => setNewSection(e.target.value)}
+              placeholder="e.g. BSI/T 5-A"
+              className="h-8 flex-1 rounded border border-slate-200 px-2 text-xs outline-none focus:border-brand-500"
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdd())}
+            />
+            <Button type="button" size="sm" onClick={handleAdd}>
+              Add
+            </Button>
+          </div>
+          <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+            {managedSections.map((opt) => (
+              <div key={opt} className="flex items-center justify-between rounded bg-white px-2 py-1.5 border border-slate-100 shadow-sm">
+                <span className="text-xs font-medium text-slate-700">{opt}</span>
+                <button type="button" onClick={() => handleRemove(opt)} className="text-slate-400 hover:text-danger-500">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+            {managedSections.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-2">No options.</p>
+            )}
+          </div>
         </div>
+      ) : (
+        <select
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          className={sel}
+        >
+          <option value="">Select Section</option>
+          {managedSections.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
       )}
-      {error && <p className="text-xs text-danger-500">{error}</p>}
+
+      {error && !isEditing && <p className="mt-1 text-xs text-danger-500">{error}</p>}
     </div>
   );
 }
