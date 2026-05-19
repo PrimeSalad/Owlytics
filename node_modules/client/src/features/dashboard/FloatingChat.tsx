@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { Megaphone, Send, X, MessageCircle, MessageSquare, ChevronDown } from 'lucide-react';
+import { Megaphone, Send, X, MessageCircle, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { Button, Input } from '@/components/ui';
@@ -147,7 +147,7 @@ export function FloatingChat() {
               canBroadcast && (
                 <Button 
                   onClick={() => setIsComposing(true)}
-                  variant="outline"
+                  variant="secondary"
                   className="w-full border-dashed border-slate-300 hover:border-brand-300 hover:bg-brand-50 text-slate-500 hover:text-brand-600 h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
                 >
                   <Megaphone className="mr-2 h-4 w-4" /> New Announcement

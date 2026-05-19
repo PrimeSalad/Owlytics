@@ -279,11 +279,15 @@ export function PresidentDashboard() {
                 ) : (
                   <ul className="divide-y divide-slate-100">
                     {unresolved.map((r) => (
-                      <li key={r.id} className="px-5 py-4 hover:bg-slate-50/70 transition-colors">
+                      <li key={r.id ?? r._id} className="px-5 py-4 hover:bg-slate-50/70 transition-colors">
                         <div className="mb-1 flex justify-between gap-2">
                           <p className="text-[13px] font-semibold text-slate-900 line-clamp-1">{r.title}</p>
                           <button
-                            onClick={() => resolveMutation.mutate(r.id)}
+                            onClick={() => {
+                              const reportId = r.id ?? r._id;
+                              if (!reportId) return;
+                              resolveMutation.mutate(reportId);
+                            }}
                             disabled={resolveMutation.isPending}
                             className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-brand-600 hover:text-brand-700 transition-colors disabled:opacity-40"
                           >
@@ -295,7 +299,7 @@ export function PresidentDashboard() {
                           <Clock className="h-3 w-3" />
                           {new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           <span className="text-slate-300">·</span>
-                          {r.profiles?.first_name} {r.profiles?.last_name}
+                          {r.profiles ? `${r.profiles.first_name} ${r.profiles.last_name}` : 'Unknown reporter'}
                         </div>
                       </li>
                     ))}
@@ -321,7 +325,7 @@ export function PresidentDashboard() {
                 ) : (
                   <ul className="divide-y divide-slate-100">
                     {accomplishments.slice(0, 5).map((r) => (
-                      <li key={r.id} className="px-5 py-3.5 hover:bg-slate-50/70 transition-colors">
+                      <li key={r.id ?? r._id} className="px-5 py-3.5 hover:bg-slate-50/70 transition-colors">
                         <p className="text-[12px] font-semibold text-slate-800 line-clamp-1">{r.title}</p>
                         <p className="mt-0.5 text-[11px] text-slate-400 line-clamp-2">{r.content}</p>
                         <p className="mt-1 text-[10px] text-slate-400">

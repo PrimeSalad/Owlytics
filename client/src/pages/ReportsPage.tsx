@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, FileDown, FileText, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { PageWrapper } from '@/components/layout';
 import { Button, Spinner } from '@/components/ui';
@@ -13,7 +13,6 @@ import type { Event } from '@/types';
 const TYPE_FILTERS  = ['', 'Accomplishment', 'Update', 'Emergency'] as const;
 const STATUS_FILTERS = ['', 'Submitted', 'Approved', 'Rejected', 'Draft'] as const;
 
-
 export function ReportsPage() {
   const user = useAuthStore((s) => s.user);
   const role = user?.role ?? 'Committee';
@@ -25,14 +24,6 @@ export function ReportsPage() {
   const [submitOpen,   setSubmitOpen]   = useState(false);
   const [compileOpen,  setCompileOpen]  = useState(false);
   const [activeId,     setActiveId]     = useState<string | null>(null);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const reportId = params.get('reportId');
-    if (reportId) {
-      setActiveId(reportId);
-    }
-  }, []);
 
   const { data: rawReports = [], isLoading, refetch } = useReports({
     type:    typeFilter   || undefined,
