@@ -130,7 +130,7 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-1">
+                <div className="grid gap-2 py-1">
                   {filteredSections.map((section) => {
                     const isActive = section.id === value;
                     return (
@@ -143,19 +143,27 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
                           setSearchTerm('');
                         }}
                         className={cn(
-                          'flex items-center justify-between rounded-lg px-3 py-2 text-left transition-all group',
-                          isActive ? 'bg-brand-50 text-brand-700' : 'hover:bg-slate-50 text-slate-600 hover:text-slate-900'
+                          'flex flex-col gap-1.5 rounded-lg px-3 py-2.5 text-left transition-all group border',
+                          isActive 
+                            ? 'bg-brand-50 border-brand-200' 
+                            : 'hover:bg-slate-50 border-slate-100 hover:border-slate-200'
                         )}
                       >
-                        <span className="text-sm font-semibold">{section.display_name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className={cn(
-                            'text-[10px] font-bold px-1.5 py-0.5 rounded border transition-colors',
-                            isActive ? 'border-brand-200 bg-brand-100' : 'border-slate-200 bg-white group-hover:border-slate-300'
-                          )}>
-                            {section.total_students}
-                          </span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold">{section.course_code === 'BSIT' ? 'BSI/T' : section.course_code}</span>
                           {isActive && <Check className="h-4 w-4 text-brand-600" />}
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                            <span className="text-xs text-slate-500 font-medium">{section.course_name}</span>
+                            <span className="text-xs font-semibold text-slate-600">Year {section.academic_year} - Block {section.block}</span>
+                          </div>
+                          <span className={cn(
+                            'text-xs font-bold px-2 py-1 rounded-md whitespace-nowrap transition-colors',
+                            isActive ? 'border-brand-200 bg-brand-100 text-brand-700' : 'border border-slate-200 bg-white text-slate-700 group-hover:border-slate-300'
+                          )}>
+                            {section.total_students} students
+                          </span>
                         </div>
                       </button>
                     );
