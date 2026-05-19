@@ -1,4 +1,4 @@
-import { type ElementType, useMemo, useState } from 'react';
+import { type ElementType, useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Edit2,
@@ -8,6 +8,7 @@ import {
   Trash2,
   UserPlus,
   Users as UsersIcon,
+  X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
@@ -398,6 +399,13 @@ function CreateMemberModal({
   );
 }
 
+const COURSES = ['BSI/T', 'BSIS'];
+const YEARS = [1, 2, 3, 4];
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+const DEFAULT_SECTION_OPTIONS = COURSES.flatMap((course) =>
+  YEARS.flatMap((year) => LETTERS.map((letter) => `${course} ${year}-${letter}`))
+);
+
 function EditMemberModal({
   user,
   onClose,
@@ -413,6 +421,7 @@ function EditMemberModal({
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<UpdateForm>({
     resolver: zodResolver(updateSchema),
@@ -420,6 +429,36 @@ function EditMemberModal({
   });
   
   const selectedRole = watch('role');
+
+  const [managedSections] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('owlytics_sections');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {
+      // Ignore
+    }
+    return DEFAULT_SECTION_OPTIONS;
+  });
+
+  const [selectedSections, setSelectedSections] = useState<string[]>(
+    user.assignedSection ? user.assignedSection.split(',').map(s => s.trim()).filter(Boolean) : []
+  );
+
+  useEffect(() => {
+    setValue('assignedSection', selectedSections.length > 0 ? selectedSections.join(', ') : null, { shouldValidate: true });
+  }, [selectedSections, setValue]);
+
+  const handleAddSection = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    if (val && !selectedSections.includes(val)) {
+      setSelectedSections([...selectedSections, val]);
+    }
+    e.target.value = '';
+  };
+
+  const handleRemoveSection = (sec: string) => {
+    setSelectedSections(selectedSections.filter(s => s !== sec));
+  };
 
   return (
     <Modal
@@ -443,13 +482,38 @@ function EditMemberModal({
         </div>
         
         {selectedRole === 'Attendance' && (
-          <Input
-            label="Assigned Section"
-            placeholder="e.g. BSIT 3-A"
-            hint="The section this Attendance role user is assigned to"
-            error={errors.assignedSection?.message}
-            {...register('assignedSection')}
-          />
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-slate-600">Assigned Sections</label>
+            <div className="space-y-2">
+              <select
+                onChange={handleAddSection}
+                className="h-10 w-full rounded-lg border border-surface-border bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                defaultValue=""
+              >
+                <option value="" disabled>Select a section to add...</option>
+                {managedSections.map((opt) => (
+                  <option key={opt} value={opt} disabled={selectedSections.includes(opt)}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+              {selectedSections.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedSections.map((sec) => (
+                    <span key={sec} className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-[11px] font-bold text-brand-700 border border-brand-100">
+                      {sec}
+                      <button type="button" onClick={() => handleRemoveSection(sec)} className="ml-1 text-brand-400 hover:text-brand-600">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            {errors.assignedSection && <p className="mt-1 text-xs text-danger">{errors.assignedSection.message}</p>}
+            {/* Hidden input to register the value */}
+            <input type="hidden" {...register('assignedSection')} />
+          </div>
         )}
         
         <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-surface-border px-3 py-2">

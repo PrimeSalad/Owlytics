@@ -116,6 +116,7 @@ export async function updateUser(req: Request, res: Response) {
   if (isPresident) {
     if (data.role) updatePayload.role = data.role;
     if (data.isActive !== undefined) updatePayload.is_active = data.isActive;
+    if (data.assignedSection !== undefined) updatePayload.assigned_section = data.assignedSection;
   } else {
     if (data.role || data.isActive !== undefined) {
       throw new AppError(403, 'You do not have permission to change roles or active status');
