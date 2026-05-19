@@ -1,4 +1,4 @@
-import { type ElementType, useMemo, useState } from 'react';
+import { type ElementType, useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Edit2,
@@ -8,11 +8,11 @@ import {
   Trash2,
   UserPlus,
   Users as UsersIcon,
+  X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
 import { Badge, Button, Card, CardBody, Input, Modal, Spinner } from '@/components/ui';
-import SectionSelector from '@/components/ui/SectionSelector';
 import { api } from '@/lib/api';
 import type { User, UserRole } from '@/types';
 import { useForm } from 'react-hook-form';
@@ -30,26 +30,13 @@ const createSchema = z.object({
   email: z.string().email('Valid email is required'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   role: z.enum(roles),
-  sectionId: z.string().uuid('Invalid section ID').optional(),
-}).refine(
-  (data) => {
-    // If role is Attendance, sectionId must be provided
-    if (data.role === 'Attendance') {
-      return !!data.sectionId;
-    }
-    return true;
-  },
-  {
-    message: 'Section is required for Attendance role',
-    path: ['sectionId'],
-  }
-);
+});
 type CreateForm = z.infer<typeof createSchema>;
 
 const updateSchema = z.object({
   role: z.enum(roles),
   isActive: z.boolean(),
-  sectionId: z.string().uuid('Invalid section ID').nullable().optional(),
+  assignedSection: z.string().nullable().optional(),
 });
 type UpdateForm = z.infer<typeof updateSchema>;
 
@@ -60,6 +47,143 @@ const roleBadge: Record<UserRole, 'primary' | 'info' | 'warning' | 'default' | '
   Committee: 'default',
   Attendance: 'success',
 };
+
+const COURSES = ['BSI/T', 'BSIS'];
+const YEARS = [1, 2, 3, 4];
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+const DEFAULT_SECTION_OPTIONS = COURSES.flatMap((course) =>
+  YEARS.flatMap((year) => LETTERS.map((letter) => `${course} ${year}-${letter}`))
+);
+
+function MultiSectionPicker({
+  selectedSections,
+  error,
+  onChange,
+}: {
+  selectedSections: string[];
+  error?: string;
+  onChange: (vals: string[]) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [newSection, setNewSection] = useState('');
+
+  const [managedSections, setManagedSections] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('owlytics_sections');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {
+      // Ignore
+    }
+    return DEFAULT_SECTION_OPTIONS;
+  });
+
+  const saveSections = (sections: string[]) => {
+    setManagedSections(sections);
+    localStorage.setItem('owlytics_sections', JSON.stringify(sections));
+  };
+
+  const handleAddOption = () => {
+    const trimmed = newSection.trim().toUpperCase();
+    if (trimmed && !managedSections.includes(trimmed)) {
+      saveSections([...managedSections, trimmed].sort());
+    }
+    setNewSection('');
+  };
+
+  const handleRemoveOption = (sec: string) => {
+    saveSections(managedSections.filter((s) => s !== sec));
+    if (selectedSections.includes(sec)) {
+      onChange(selectedSections.filter((s) => s !== sec));
+    }
+  };
+
+  const handleSelectSection = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    if (val && !selectedSections.includes(val)) {
+      onChange([...selectedSections, val]);
+    }
+    e.target.value = ''; // Reset select
+  };
+
+  const handleRemoveSelected = (sec: string) => {
+    onChange(selectedSections.filter((s) => s !== sec));
+  };
+
+  return (
+    <div className="relative">
+      <div className="mb-1.5 flex items-center justify-between">
+        <label className="block text-xs font-medium text-slate-600">Assigned Sections</label>
+        <button
+          type="button"
+          onClick={() => setIsEditing(!isEditing)}
+          className="text-[10px] font-bold text-brand-600 hover:text-brand-700 uppercase tracking-wider"
+        >
+          {isEditing ? 'Done' : 'Edit Options'}
+        </button>
+      </div>
+
+      {isEditing ? (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newSection}
+              onChange={(e) => setNewSection(e.target.value)}
+              placeholder="e.g. BSI/T 5-A"
+              className="h-8 flex-1 rounded border border-slate-200 px-2 text-xs outline-none focus:border-brand-500"
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
+            />
+            <Button type="button" size="sm" onClick={handleAddOption}>
+              Add
+            </Button>
+          </div>
+          <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+            {managedSections.map((opt) => (
+              <div key={opt} className="flex items-center justify-between rounded bg-white px-2 py-1.5 border border-slate-100 shadow-sm">
+                <span className="text-xs font-medium text-slate-700">{opt}</span>
+                <button type="button" onClick={() => handleRemoveOption(opt)} className="text-slate-400 hover:text-danger-500">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+            {managedSections.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-2">No options.</p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <select
+            onChange={handleSelectSection}
+            className="h-10 w-full rounded-lg border border-surface-border bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+            defaultValue=""
+          >
+            <option value="" disabled>Select a section to add...</option>
+            {managedSections.map((opt) => (
+              <option key={opt} value={opt} disabled={selectedSections.includes(opt)}>
+                {opt}
+              </option>
+            ))}
+          </select>
+          {selectedSections.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {selectedSections.map((sec) => (
+                <span key={sec} className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-[11px] font-bold text-brand-700 border border-brand-100">
+                  {sec}
+                  <button type="button" onClick={() => handleRemoveSelected(sec)} className="ml-1 text-brand-400 hover:text-brand-600">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {error && !isEditing && <p className="mt-1 text-xs text-danger-500">{error}</p>}
+    </div>
+  );
+}
 
 export function MembersPage({ isComponent = false }: { isComponent?: boolean }) {
   const [createOpen, setCreateOpen] = useState(false);
@@ -102,7 +226,6 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
         email: values.email,
         password: values.password,
         role: values.role,
-        ...(values.sectionId && { sectionId: values.sectionId }),
       });
     },
     onSuccess: () => {
@@ -204,7 +327,6 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Account</th>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Access ID</th>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Role</th>
-                    <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Section</th>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</th>
                     <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500">Actions</th>
                   </tr>
@@ -231,17 +353,6 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
                       <td className="px-6 py-4 font-mono text-xs text-slate-500">{u.studentId}</td>
                       <td className="px-6 py-4">
                         <Badge variant={roleBadge[u.role]}>{roleLabel(u.role)}</Badge>
-                      </td>
-                      <td className="px-6 py-4 text-xs text-slate-600">
-                        {u.role === 'Attendance' ? (
-                          u.assignedSection ? (
-                            <span className="rounded-md bg-blue-50 px-2 py-1 text-blue-700">{u.assignedSection}</span>
-                          ) : (
-                            <span className="text-slate-400">Not assigned</span>
-                          )
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -356,17 +467,12 @@ function CreateMemberModal({
   const {
     register,
     handleSubmit,
-    watch,
-    setValue,
     formState: { errors },
     reset,
   } = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
     defaultValues: { role: 'Officer' },
   });
-
-  const selectedRole = watch('role');
-  const selectedSectionId = watch('sectionId');
 
   return (
     <Modal
@@ -417,22 +523,6 @@ function CreateMemberModal({
           </select>
           {errors.role && <p className="mt-1 text-xs text-danger">{errors.role.message}</p>}
         </div>
-
-        {selectedRole === 'Attendance' && (
-          <div className="rounded-2xl border border-brand-100 bg-brand-50/30 p-4 animate-in slide-in-from-top-2 duration-300">
-            <SectionSelector
-              value={selectedSectionId}
-              onChange={(sectionId) => setValue('sectionId', sectionId)}
-              required
-              onlyActiveDirectory={true}
-            />
-            {errors.sectionId && <p className="mt-1 text-xs text-danger font-medium ml-1">{errors.sectionId.message}</p>}
-            <p className="mt-2 text-[10px] text-brand-600 font-bold uppercase tracking-wider ml-1">
-              Note: You can only assign sections that have students in the directory.
-            </p>
-          </div>
-        )}
-
         <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
@@ -465,11 +555,18 @@ function EditMemberModal({
     formState: { errors },
   } = useForm<UpdateForm>({
     resolver: zodResolver(updateSchema),
-    defaultValues: { role: user.role, isActive: user.isActive, sectionId: user.sectionId || null },
+    defaultValues: { role: user.role, isActive: user.isActive, assignedSection: user.assignedSection || null },
   });
   
   const selectedRole = watch('role');
-  const selectedSectionId = watch('sectionId');
+
+  const [selectedSections, setSelectedSections] = useState<string[]>(
+    user.assignedSection ? user.assignedSection.split(',').map(s => s.trim()).filter(Boolean) : []
+  );
+
+  useEffect(() => {
+    setValue('assignedSection', selectedSections.length > 0 ? selectedSections.join(', ') : null, { shouldValidate: true });
+  }, [selectedSections, setValue]);
 
   return (
     <Modal
@@ -493,15 +590,11 @@ function EditMemberModal({
         </div>
         
         {selectedRole === 'Attendance' && (
-          <div className="rounded-2xl border border-brand-100 bg-brand-50/30 p-4 animate-in slide-in-from-top-2 duration-300">
-            <SectionSelector
-              value={selectedSectionId || undefined}
-              onChange={(sectionId) => setValue('sectionId', sectionId)}
-              required={false}
-              onlyActiveDirectory={true}
-            />
-            {errors.sectionId && <p className="mt-1 text-xs text-danger font-medium ml-1">{errors.sectionId.message}</p>}
-          </div>
+          <MultiSectionPicker
+            selectedSections={selectedSections}
+            error={errors.assignedSection?.message}
+            onChange={setSelectedSections}
+          />
         )}
         
         <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-surface-border px-3 py-2">
