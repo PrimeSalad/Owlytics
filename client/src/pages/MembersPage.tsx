@@ -491,7 +491,7 @@ function EditMemberModal({
         </div>
         
         {selectedRole === 'Attendance' && (
-          <div className="rounded-2xl border border-brand-100 bg-brand-50/30 p-4 animate-in slide-in-from-top-2 duration-300">
+          <div className="animate-in slide-in-from-top-2 duration-300">
             <SectionSelector
               value={sectionId || undefined}
               onChange={(id) => setValue('sectionId', id, { shouldValidate: true })}

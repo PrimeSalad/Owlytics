@@ -143,22 +143,17 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
                           setSearchTerm('');
                         }}
                         className={cn(
-                          'flex items-center justify-between rounded-lg px-3 py-2.5 text-left transition-all group',
+                          'flex items-center justify-between rounded-lg px-3 py-2 text-left transition-all group',
                           isActive ? 'bg-brand-50 text-brand-700' : 'hover:bg-slate-50 text-slate-600 hover:text-slate-900'
                         )}
                       >
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold">{section.display_name}</span>
-                          <span className="text-[10px] opacity-70 uppercase tracking-tight">
-                            {section.course_name} • Year {section.academic_year}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold">{section.display_name}</span>
+                        <div className="flex items-center gap-2">
                           <span className={cn(
                             'text-[10px] font-bold px-1.5 py-0.5 rounded border transition-colors',
                             isActive ? 'border-brand-200 bg-brand-100' : 'border-slate-200 bg-white group-hover:border-slate-300'
                           )}>
-                            {section.total_students} Students
+                            {section.total_students}
                           </span>
                           {isActive && <Check className="h-4 w-4 text-brand-600" />}
                         </div>
@@ -168,25 +163,9 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
                 </div>
               )}
             </div>
-            
-            {/* Footer */}
-            <div className="bg-slate-50 border-t border-slate-100 px-4 py-2.5">
-               <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
-                 {onlyActiveDirectory ? 'Directory Filter Active' : 'All Sections Visible'}
-               </p>
-            </div>
           </div>
         )}
       </div>
-
-      {value && !isOpen && (
-        <div className="flex items-center gap-1.5 px-1 py-0.5 animate-in slide-in-from-top-1 duration-300">
-          <div className="flex h-4 w-4 items-center justify-center rounded-full bg-green-100">
-            <Check className="h-2.5 w-2.5 text-green-600" />
-          </div>
-          <p className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Section Linked Successfully</p>
-        </div>
-      )}
     </div>
   );
 };
