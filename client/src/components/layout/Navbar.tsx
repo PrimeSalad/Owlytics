@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, Check, Menu, X, Settings, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
-import { cn, roleLabel, AVATAR_COLORS } from '@/lib/utils';
+import { cn, roleLabel } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 
 interface NavbarProps { onMenuClick: () => void; title?: string; }
@@ -146,7 +146,7 @@ export function Navbar({ onMenuClick, title }: NavbarProps) {
               onClick={() => setProfileOpen(!profileOpen)}
               className="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 transition-colors hover:bg-slate-50 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
             >
-              <div className={cn('flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-bold text-white overflow-hidden', !user.avatarUrl ? `bg-gradient-to-br ${AVATAR_COLORS[user.avatarColor || 0]?.from} ${AVATAR_COLORS[user.avatarColor || 0]?.to}` : 'ring-1 ring-slate-200')}>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-[12px] font-bold text-brand-600 ring-1 ring-brand-100 overflow-hidden">
                 {user.avatarUrl ? (
                   <img src={user.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
                 ) : (
