@@ -21,7 +21,10 @@ function fmtWindow(d: Date): string {
  *  - after grace, before close -> Late
  * Throws AppError for any out-of-window scan so the scanner shows a clear reason.
  */
-async function resolveScanStatus(sessionId: string, scanTime: Date): Promise<'Present' | 'Late'> {
+async function resolveScanStatus(
+  sessionId: string,
+  scanTime: Date
+): Promise<{ status: 'Present' | 'Late'; label: string }> {
   const { data: session, error } = await supabase
     .from('attendance_sessions')
     .select('label, open_at, close_at, grace_period_minutes')
@@ -41,12 +44,13 @@ async function resolveScanStatus(sessionId: string, scanTime: Date): Promise<'Pr
     throw new AppError(403, `${label} is already closed — it ended ${fmtWindow(closeAt)}.`);
   }
 
+  let status: 'Present' | 'Late' = 'Present';
   if (openAt) {
     const graceMinutes = session.grace_period_minutes ?? 0;
     const lateThreshold = new Date(openAt.getTime() + graceMinutes * 60_000);
-    return scanTime > lateThreshold ? 'Late' : 'Present';
+    if (scanTime > lateThreshold) status = 'Late';
   }
-  return 'Present';
+  return { status, label };
 }
 
 export async function createSchedule(req: Request, res: Response) {
@@ -128,12 +132,14 @@ export async function scanQR(req: Request, res: Response) {
 
   // 4. Enforce the session window set by the Secretary/President and resolve status.
   const scannedAt = new Date();
-  const status = await resolveScanStatus(sessionId, scannedAt);
+  const { status, label } = await resolveScanStatus(sessionId, scannedAt);
 
-  // 5. Record attendance
+  // 5. Record attendance — one scan per student per session.
+  //    A plain insert (not upsert) means a second scan for the same session is
+  //    rejected by the unique (student_id, session_id) constraint.
   const { data: record, error: recordError } = await supabase
     .from('attendance_records')
-    .upsert({
+    .insert({
       event_id: eventId,
       schedule_id: scheduleId,
       session_id: sessionId,
@@ -143,11 +149,16 @@ export async function scanQR(req: Request, res: Response) {
       timestamp: scannedAt.toISOString(),
       lat: locationData?.lat,
       lng: locationData?.lng,
-    }, { onConflict: 'student_id, session_id' })
+    })
     .select('*, students(first_name, last_name, student_id)')
     .single();
 
-  if (recordError) throw new AppError(400, recordError.message);
+  if (recordError) {
+    if (recordError.code === '23505') {
+      throw new AppError(409, `${student.first_name} ${student.last_name} is already checked in for ${label}.`);
+    }
+    throw new AppError(400, recordError.message);
+  }
 
   // Flat shape consumed by the client QRScanner
   res.json({
@@ -165,7 +176,7 @@ export async function syncOffline(req: Request, res: Response) {
   if (!Array.isArray(scans)) throw new AppError(400, 'Invalid scans data');
 
   const scannerId = req.user!.userId;
-  const results = { success: 0, failed: 0, errors: [] as string[] };
+  const results = { success: 0, failed: 0, duplicate: 0, errors: [] as string[] };
 
   for (const scan of scans) {
     try {
@@ -183,9 +194,9 @@ export async function syncOffline(req: Request, res: Response) {
 
       // Validate against the session window using the time the scan actually happened.
       const scannedAt = scan.timestamp ? new Date(scan.timestamp) : new Date();
-      const status = await resolveScanStatus(scan.sessionId, scannedAt);
+      const { status } = await resolveScanStatus(scan.sessionId, scannedAt);
 
-      const { error } = await supabase.from('attendance_records').upsert({
+      const { error } = await supabase.from('attendance_records').insert({
         event_id: scan.eventId,
         schedule_id: scan.scheduleId,
         session_id: scan.sessionId,
@@ -194,9 +205,13 @@ export async function syncOffline(req: Request, res: Response) {
         scanned_by: scannerId,
         timestamp: scannedAt.toISOString(),
         is_offline_sync: true,
-      }, { onConflict: 'student_id, session_id' });
+      });
 
-      if (error) throw error;
+      if (error) {
+        // Already checked in for this session — not a failure, just skip.
+        if (error.code === '23505') { results.duplicate++; continue; }
+        throw error;
+      }
       results.success++;
     } catch (err: any) {
       results.failed++;

@@ -1,4 +1,4 @@
-import { type ElementType, useEffect, useRef, useState } from 'react';
+import { type ElementType, useEffect, useRef, useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import QRCode from 'qrcode';
 import {
@@ -47,34 +47,194 @@ const YEAR_LABELS: Record<number, string> = {
   4: '4th Year',
 };
 
+/** "BSI/T 4-A" -> "BSI/T". Falls back to the whole string if it doesn't match. */
+function parseCourse(section: string): string {
+  const match = section.match(/^(.*)\s+\d+-[A-Za-z0-9]+$/);
+  return (match ? match[1] : section).trim();
+}
+
+/** "BSI/T 4-A" -> "4". Empty string if there's no year. */
+function parseYear(section: string): string {
+  const match = section.match(/\s(\d+)-[A-Za-z0-9]+$/);
+  return match ? match[1] : '';
+}
+
+/** "BSI/T 4-A" -> "A". Empty string if there's no trailing block letter. */
+function parseBlock(section: string): string {
+  const match = section.match(/-([A-Za-z0-9]+)$/);
+  return match ? match[1].toUpperCase() : '';
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Renders a QR with the student's name, ID and section drawn onto the image. */
+async function renderLabeledQR(student: Student): Promise<Blob | null> {
+  const qrPayload = `SMS|${student.studentId}|${student.name.first} ${student.name.last}|${student.section}`;
+  const qrUrl = await QRCode.toDataURL(qrPayload, {
+    width: 320,
+    margin: 1,
+    errorCorrectionLevel: 'H',
+    color: { dark: '#000000', light: '#ffffff' },
+  });
+  const img = await loadImage(qrUrl);
+
+  const W = 360;
+  const QR = 320;
+  const padTop = 20;
+  const textBlock = 96;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = padTop + QR + textBlock;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, (W - QR) / 2, padTop, QR, QR);
+
+  const maxText = W - 32;
+  ctx.textAlign = 'center';
+
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 22px Arial, sans-serif';
+  ctx.fillText(`${student.name.first} ${student.name.last}`, W / 2, padTop + QR + 30, maxText);
+
+  ctx.fillStyle = '#475569';
+  ctx.font = '16px Arial, sans-serif';
+  ctx.fillText(student.studentId, W / 2, padTop + QR + 54, maxText);
+
+  ctx.fillStyle = '#0e7c5a';
+  ctx.font = 'bold 14px Arial, sans-serif';
+  ctx.fillText(student.section, W / 2, padTop + QR + 78, maxText);
+
+  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/png'));
+}
+
 export function StudentsPage({ isComponent = false }: { isComponent?: boolean }) {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const canManageStudents = user?.role === 'President' || user?.role === 'Secretary';
+  
   const [search, setSearch] = useState('');
-  const [yearFilter, setYearFilter] = useState('');
-  const [sectionFilter, setSectionFilter] = useState('');
+  const [combinedFilter, setCombinedFilter] = useState('');
   const [page, setPage] = useState(1);
+  
   const [addOpen, setAddOpen] = useState(false);
   const [addDefaultSection, setAddDefaultSection] = useState('');
   const [bulkOpen, setBulkOpen] = useState(false);
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [qrStudent, setQrStudent] = useState<Student | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
+
+  // Derive individual filters safely from the single combined filter string (e.g. "BSI/T|1|A|BSI/T 1-A")
+  const filterParts = combinedFilter ? combinedFilter.split('|') : [];
+  const courseFilter = filterParts[0] || '';
+  const yearFilter = filterParts[1] || '';
+  const blockFilter = filterParts[2] || '';
+  const fullSectionFilter = filterParts[3] || '';
 
   const { data: sections = [], refetch: refetchSections } = useQuery({
     queryKey: ['student-sections'],
     queryFn: async () => (await api.get<string[]>('/students/sections')).data,
   });
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['students', page, search, yearFilter, sectionFilter],
-    queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
-      if (search.trim()) params.set('search', search.trim());
+  /** Build the hierarchical options for the single filter dropdown */
+  const filterOptions = useMemo(() => {
+    if (!sections || !Array.isArray(sections) || sections.length === 0) return [];
+
+    const tree: { label: string; value: string; level: number }[] = [];
+    const courses = [...new Set(sections.map(parseCourse))].sort();
+
+    courses.forEach((course) => {
+      if (!course) return;
+      
+      const years = [...new Set(sections.filter(s => parseCourse(s) === course).map(parseYear))].sort();
+      years.forEach((year) => {
+        const yNum = parseInt(year, 10);
+        if (!year || isNaN(yNum)) return;
+        
+        // Group Level: "BSIT - 1st Year"
+        tree.push({ 
+          label: `${course} - ${YEAR_LABELS[yNum] || `${year} Year`}`, 
+          value: `${course}|${year}`, 
+          level: 0 
+        });
+        
+        const matchingSections = sections
+          .filter(s => parseCourse(s) === course && parseYear(s) === year)
+          .sort();
+          
+        matchingSections.forEach((s) => {
+          const block = parseBlock(s);
+          if (!block) return;
+          // Item Level: The actual section name e.g. "BSI/T 1-A"
+          // We include the full section string 's' at the end for exact matching
+          tree.push({ 
+            label: s, 
+            value: `${course}|${year}|${block}|${s}`, 
+            level: 1 
+          });
+        });
+      });
+    });
+
+    return tree;
+  }, [sections]);
+
+  // Human label describing the current filter scope (for download UI).
+  const scopeLabel = useMemo(() => {
+    if (fullSectionFilter) return fullSectionFilter;
+    const labels = [];
+    if (courseFilter) labels.push(courseFilter);
+    if (yearFilter) {
+      const yNum = parseInt(yearFilter, 10);
+      labels.push(YEAR_LABELS[yNum] || `${yearFilter} Year`);
+    }
+    if (blockFilter) labels.push(`Section ${blockFilter}`);
+    return labels.join(' · ') || 'All students';
+  }, [courseFilter, yearFilter, blockFilter, fullSectionFilter]);
+
+  // Shared query params for list / print / download so every filter stays in sync.
+  const buildParams = (extra: Record<string, string> = {}) => {
+    const params = new URLSearchParams(extra);
+    if (search.trim()) params.set('search', search.trim());
+    
+    // If we have an exact section string, use it (highest priority)
+    if (fullSectionFilter) {
+      params.set('section', fullSectionFilter);
+    } else {
+      if (courseFilter) params.set('course', courseFilter);
       if (yearFilter) params.set('yearLevel', yearFilter);
-      if (sectionFilter) params.set('section', sectionFilter);
-      params.set('orderBy', 'section');
+      if (blockFilter) params.set('block', blockFilter);
+    }
+    return params;
+  };
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['students', page, search, combinedFilter],
+    queryFn: async () => {
+      const params = buildParams({ page: String(page), limit: String(PAGE_SIZE), orderBy: 'section' });
       const { data } = await api.get(`/students?${params}`);
       return data as { students: Student[]; total: number; page: number; limit: number };
     },
@@ -92,10 +252,8 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
   const handlePrintFiltered = async () => {
     try {
       setIsPrinting(true);
-      const params = new URLSearchParams({ limit: '1000' });
-      if (search.trim()) params.set('search', search.trim());
-      if (yearFilter) params.set('yearLevel', yearFilter);
-      
+      const params = buildParams({ limit: '1000' });
+
       const { data } = await api.get(`/students?${params}`);
       const allFiltered: Student[] = data.students;
 
@@ -183,6 +341,45 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
     }
   };
 
+  const handleDownloadQRs = async (allStudents: boolean) => {
+    setDownloadMenuOpen(false);
+    try {
+      setIsDownloading(true);
+      const params = allStudents
+        ? new URLSearchParams({ limit: '1000', orderBy: 'section' })
+        : buildParams({ limit: '1000', orderBy: 'section' });
+      const { data } = await api.get(`/students?${params}`);
+      const list: Student[] = data.students;
+
+      if (list.length === 0) {
+        toast.error('No students to download');
+        return;
+      }
+
+      const { default: JSZip } = await import('jszip');
+      const zip = new JSZip();
+
+      for (const student of list) {
+        const blob = await renderLabeledQR(student);
+        if (!blob) continue;
+        const safeName = `${student.studentId}_${student.name.first}_${student.name.last}`
+          .replace(/[^a-z0-9_-]+/gi, '_')
+          .replace(/_+/g, '_');
+        zip.file(`${safeName}.png`, blob);
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const suffix = allStudents ? 'all' : scopeLabel;
+      downloadBlob(content, `qr-codes-${suffix}.zip`.replace(/[^a-z0-9.-]+/gi, '-'));
+      toast.success(`Downloaded ${list.length} QR code${list.length === 1 ? '' : 's'}`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to download QR codes');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const students = data?.students ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -195,8 +392,8 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
         <DirectoryMetric label="Page" value={page} icon={Search} />
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex w-full flex-col gap-2 sm:flex-row lg:max-w-3xl">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex w-full flex-col gap-3 lg:flex-row lg:max-w-3xl lg:items-center">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -207,39 +404,82 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
             />
           </div>
 
-          {/* Section filter */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center bg-slate-50/50 p-1 rounded-xl border border-surface-border/60">
+            {/* Unified Filter */}
             <select
-              value={sectionFilter}
-              onChange={(e) => { setSectionFilter(e.target.value); setPage(1); }}
-              className="h-10 rounded-lg border border-surface-border bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              value={combinedFilter}
+              onChange={(e) => {
+                setCombinedFilter(e.target.value);
+                setPage(1);
+              }}
+              className="h-9 min-w-[220px] rounded-lg border border-surface-border bg-white px-3 text-[13px] font-semibold text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
             >
-              <option value="">All sections</option>
-              {sections.map((s) => <option key={s} value={s}>{s}</option>)}
+              <option value="">All Students (No Filter)</option>
+              {filterOptions.map((opt: { label: string; value: string; level: number }) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.level === 1 ? '　' : ''}
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
-
-          <select
-            value={yearFilter}
-            onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}
-            className="h-10 rounded-lg border border-surface-border bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-          >
-            <option value="">All years</option>
-            {[1, 2, 3, 4].map((y) => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
-          </select>
         </div>
 
         {canManageStudents ? (
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button onClick={handlePrintFiltered} variant="secondary" loading={isPrinting} className="w-full sm:w-auto">
-              <Printer className="mr-2 h-4 w-4" /> Print QRs
-            </Button>
-            <Button onClick={() => setBulkOpen(true)} variant="secondary" className="w-full sm:w-auto">
-              <Users2 className="mr-2 h-4 w-4" /> Bulk Add
-            </Button>
-            <Button onClick={() => setAddOpen(true)} className="w-full sm:w-auto">
-              <UserPlus className="mr-2 h-4 w-4" /> Add Student
-            </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 rounded-xl bg-slate-50/50 p-1 border border-surface-border/60">
+              <div className="relative">
+                <Button
+                  onClick={() => setDownloadMenuOpen((v) => !v)}
+                  variant="secondary"
+                  size="sm"
+                  loading={isDownloading}
+                  className="h-8.5"
+                >
+                  <Download className="mr-1.5 h-3.5 w-3.5" /> Download
+                </Button>
+                {downloadMenuOpen && (
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Close menu"
+                      className="fixed inset-0 z-10 cursor-default"
+                      onClick={() => setDownloadMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 z-20 mt-1 w-60 overflow-hidden rounded-xl border border-surface-border bg-white shadow-lg">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadQRs(false)}
+                        className="flex w-full flex-col items-start px-4 py-2.5 text-left transition hover:bg-surface-muted"
+                      >
+                        <span className="text-sm font-semibold text-slate-800">This selection</span>
+                        <span className="text-xs text-slate-400">{scopeLabel}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadQRs(true)}
+                        className="flex w-full flex-col items-start border-t border-surface-border px-4 py-2.5 text-left transition hover:bg-surface-muted"
+                      >
+                        <span className="text-sm font-semibold text-slate-800">All students</span>
+                        <span className="text-xs text-slate-400">Every section, ignores filters</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              <Button onClick={handlePrintFiltered} variant="secondary" size="sm" loading={isPrinting} className="h-8.5">
+                <Printer className="mr-1.5 h-3.5 w-3.5" /> Print
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={() => setBulkOpen(true)} variant="secondary" size="sm" className="h-9">
+                <Users2 className="mr-1.5 h-3.5 w-3.5" /> Bulk Add
+              </Button>
+              <Button onClick={() => setAddOpen(true)} size="sm" className="h-9">
+                <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Add Student
+              </Button>
+            </div>
           </div>
         ) : (
           <Badge variant="default" className="w-fit">Directory view</Badge>
@@ -586,13 +826,13 @@ function DirectoryMetric({
 }) {
   return (
     <Card>
-      <CardBody className="flex items-center justify-between p-4">
+      <CardBody className="flex items-center justify-between p-3.5">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+          <p className="mt-0.5 text-lg font-bold text-slate-900">{value}</p>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
-          <Icon className="h-5 w-5" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+          <Icon className="h-4 w-4" />
         </div>
       </CardBody>
     </Card>

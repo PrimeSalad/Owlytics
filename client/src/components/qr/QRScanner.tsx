@@ -96,7 +96,12 @@ export function QRScanner({ eventId, scheduleId, sessionId, onScanSuccess }: QRS
         onScanSuccess?.(result);
       } catch (err: any) {
         const message = err.response?.data?.error || 'Scan failed. Try again.';
-        toast.error(message);
+        // 409 = already checked in for this session — show it as a notice, not an error.
+        if (err.response?.status === 409) {
+          toast(message, { icon: '✋' });
+        } else {
+          toast.error(message);
+        }
       }
     } else {
       bufferOfflineScan({ qrData, eventId, scheduleId, sessionId, timestamp: new Date().toISOString() });
