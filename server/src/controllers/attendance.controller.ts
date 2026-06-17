@@ -3,6 +3,52 @@ import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
 import { createScheduleSchema, scanSchema } from '../validators/attendance.validator';
 
+/** Human-readable time in PH timezone for scanner messages. */
+function fmtWindow(d: Date): string {
+  return d.toLocaleString('en-PH', {
+    timeZone: 'Asia/Manila',
+    month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true,
+  });
+}
+
+/**
+ * Validates that `scanTime` falls inside the session window the Secretary/President
+ * configured, and resolves the resulting status:
+ *  - before open_at            -> rejected (session not open yet)
+ *  - after close_at            -> rejected (session closed)
+ *  - within grace period       -> Present
+ *  - after grace, before close -> Late
+ * Throws AppError for any out-of-window scan so the scanner shows a clear reason.
+ */
+async function resolveScanStatus(sessionId: string, scanTime: Date): Promise<'Present' | 'Late'> {
+  const { data: session, error } = await supabase
+    .from('attendance_sessions')
+    .select('label, open_at, close_at, grace_period_minutes')
+    .eq('id', sessionId)
+    .single();
+
+  if (error || !session) throw new AppError(404, 'Attendance session not found');
+
+  const label = session.label ?? 'This session';
+  const openAt = session.open_at ? new Date(session.open_at) : null;
+  const closeAt = session.close_at ? new Date(session.close_at) : null;
+
+  if (openAt && scanTime < openAt) {
+    throw new AppError(403, `${label} is not open yet — scanning starts ${fmtWindow(openAt)}.`);
+  }
+  if (closeAt && scanTime > closeAt) {
+    throw new AppError(403, `${label} is already closed — it ended ${fmtWindow(closeAt)}.`);
+  }
+
+  if (openAt) {
+    const graceMinutes = session.grace_period_minutes ?? 0;
+    const lateThreshold = new Date(openAt.getTime() + graceMinutes * 60_000);
+    return scanTime > lateThreshold ? 'Late' : 'Present';
+  }
+  return 'Present';
+}
+
 export async function createSchedule(req: Request, res: Response) {
   const data = createScheduleSchema.parse(req.body);
 
@@ -80,7 +126,11 @@ export async function scanQR(req: Request, res: Response) {
     }
   }
 
-  // 4. Record attendance
+  // 4. Enforce the session window set by the Secretary/President and resolve status.
+  const scannedAt = new Date();
+  const status = await resolveScanStatus(sessionId, scannedAt);
+
+  // 5. Record attendance
   const { data: record, error: recordError } = await supabase
     .from('attendance_records')
     .upsert({
@@ -88,9 +138,9 @@ export async function scanQR(req: Request, res: Response) {
       schedule_id: scheduleId,
       session_id: sessionId,
       student_id: student.id,
-      status: 'Present', // Basic implementation, can be refined with Late logic
+      status,
       scanned_by: scannerId,
-      timestamp: new Date().toISOString(),
+      timestamp: scannedAt.toISOString(),
       lat: locationData?.lat,
       lng: locationData?.lng,
     }, { onConflict: 'student_id, session_id' })
@@ -99,12 +149,13 @@ export async function scanQR(req: Request, res: Response) {
 
   if (recordError) throw new AppError(400, recordError.message);
 
+  // Flat shape consumed by the client QRScanner
   res.json({
     message: 'Attendance recorded',
-    student: {
-      name: `${student.first_name} ${student.last_name}`,
-      studentId: student.student_id,
-    },
+    studentId: student.student_id,
+    studentName: `${student.first_name} ${student.last_name}`,
+    status,
+    timestamp: record.timestamp,
     record,
   });
 }
@@ -118,8 +169,8 @@ export async function syncOffline(req: Request, res: Response) {
 
   for (const scan of scans) {
     try {
-      // Very basic sync logic — can be optimized with bulk insert
-      const parts = scan.qrData.split('|');
+      const parts = String(scan.qrData ?? '').split('|');
+      if (parts[0] !== 'SMS' || parts.length < 2) throw new Error('Invalid QR code format');
       const studentIdText = parts[1];
 
       const { data: student } = await supabase
@@ -130,14 +181,18 @@ export async function syncOffline(req: Request, res: Response) {
 
       if (!student) throw new Error(`Student ${studentIdText} not found`);
 
+      // Validate against the session window using the time the scan actually happened.
+      const scannedAt = scan.timestamp ? new Date(scan.timestamp) : new Date();
+      const status = await resolveScanStatus(scan.sessionId, scannedAt);
+
       const { error } = await supabase.from('attendance_records').upsert({
         event_id: scan.eventId,
         schedule_id: scan.scheduleId,
         session_id: scan.sessionId,
         student_id: student.id,
-        status: scan.status || 'Present',
+        status,
         scanned_by: scannerId,
-        timestamp: scan.timestamp || new Date().toISOString(),
+        timestamp: scannedAt.toISOString(),
         is_offline_sync: true,
       }, { onConflict: 'student_id, session_id' });
 

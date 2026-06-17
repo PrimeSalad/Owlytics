@@ -11,6 +11,7 @@ import { PageWrapper } from '@/components/layout';
 import { Badge, Button, Card, CardBody, Input, Modal, Spinner, StatusBadge } from '@/components/ui';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/store/authStore';
 import type { Event } from '@/types';
 
 const SESSION_LABELS = ['AM In', 'AM Out', 'PM In', 'PM Out'] as const;
@@ -109,10 +110,19 @@ type ScheduleForm = z.infer<typeof scheduleSchema>;
 
 export function AttendancePage() {
   const qc = useQueryClient();
+  const role = useAuthStore((s) => s.user?.role);
+  const canManageSchedules = role === 'President' || role === 'Secretary';
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [now, setNow] = useState(() => Date.now());
+
+  // Keep "Open / Soon / Closed" session statuses accurate while the page is open.
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const { data: events = [], isLoading: eventsLoading } = useQuery({
     queryKey: ['events'],
@@ -247,25 +257,10 @@ export function AttendancePage() {
     ? `${selectedEvent.title} - ${formatDateRange(selectedEvent)}`
     : 'Choose an activity to view sessions and scan logs.';
 
-  const markAbsentMutation = useMutation({
-    mutationFn: async (scheduleId: string) =>
-      (await api.post<{ message?: string }>(`/attendance/mark-absent/${scheduleId}`)).data,
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ['records', selectedEventId] });
-      toast.success(data.message ?? 'Absent check started');
-    },
-    onError: () => toast.error('Failed to mark absences'),
-  });
-
   function handleEventChange(eventId: string) {
     setSelectedEventId(eventId);
     setSelectedSessionId('all');
     setSearchQuery('');
-  }
-
-  function handleMarkAbsent(schedule: RawAttendanceSchedule) {
-    const confirmed = window.confirm(`Mark missing students absent for "${schedule.label}"?`);
-    if (confirmed) markAbsentMutation.mutate(schedule.id);
   }
 
   function clearFilters() {
@@ -301,10 +296,12 @@ export function AttendancePage() {
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           </div>
 
-          <Button disabled={events.length === 0} onClick={() => setScheduleOpen(true)}>
-            <Plus className="h-4 w-4" />
-            New schedule
-          </Button>
+          {canManageSchedules && (
+            <Button disabled={events.length === 0} onClick={() => setScheduleOpen(true)}>
+              <Plus className="h-4 w-4" />
+              New schedule
+            </Button>
+          )}
 
           <Link to="/attendance/summary">
             <Button variant="secondary">
@@ -384,11 +381,7 @@ export function AttendancePage() {
                       {schedules.map((schedule) => (
                         <ScheduleGroup
                           key={schedule.id}
-                          loading={
-                            markAbsentMutation.isPending &&
-                            markAbsentMutation.variables === schedule.id
-                          }
-                          onMarkAbsent={() => handleMarkAbsent(schedule)}
+                          now={now}
                           onSelectSession={(sessionId) => setSelectedSessionId(sessionId)}
                           recordCountsBySession={recordCountsBySession}
                           schedule={schedule}
@@ -430,12 +423,22 @@ export function AttendancePage() {
                   <div className="border-b border-slate-100 p-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                       <div className="min-w-0">
-                        <h3 className="font-display text-base font-bold text-slate-900">
-                          {selectedSession ? selectedSession.label : 'Scan logs'}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-display text-base font-bold text-slate-900">
+                            {selectedSession ? selectedSession.label : 'Scan logs'}
+                          </h3>
+                          {selectedSession && (() => {
+                            const meta = SESSION_STATUS[windowStatus(selectedSession.openAt, selectedSession.closeAt, now)];
+                            return (
+                              <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide', meta.chip)}>
+                                {meta.label}
+                              </span>
+                            );
+                          })()}
+                        </div>
                         <p className="mt-1 text-xs text-slate-500">
                           {selectedSession
-                            ? `${selectedSession.scheduleLabel} - ${formatSessionWindow(selectedSession)}`
+                            ? `${selectedSession.scheduleLabel} · ${formatSessionWindow(selectedSession)}`
                             : `${records.length} ${records.length === 1 ? 'entry' : 'entries'}`}
                         </p>
                       </div>
@@ -615,16 +618,14 @@ function SummaryStat({
 }
 
 function ScheduleGroup({
-  loading,
-  onMarkAbsent,
+  now,
   onSelectSession,
   recordCountsBySession,
   schedule,
   selectedSessionId,
   sessions,
 }: {
-  loading: boolean;
-  onMarkAbsent: () => void;
+  now: number;
   onSelectSession: (sessionId: string) => void;
   recordCountsBySession: Map<string, number>;
   schedule: RawAttendanceSchedule;
@@ -634,20 +635,9 @@ function ScheduleGroup({
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-2.5">
       <div className="flex items-center justify-between gap-3 px-1 pb-2">
-        <div className="min-w-0">
-          <p className="truncate text-xs font-bold uppercase tracking-wider text-slate-500">
-            {schedule.label}
-          </p>
-        </div>
-        <Button
-          className="h-8 shrink-0 px-2 text-[11px] text-danger-600 hover:bg-danger-50 hover:text-danger-700"
-          loading={loading}
-          size="sm"
-          variant="ghost"
-          onClick={onMarkAbsent}
-        >
-          Mark absent
-        </Button>
+        <p className="truncate text-xs font-bold uppercase tracking-wider text-slate-500">
+          {schedule.label}
+        </p>
       </div>
 
       <div className="space-y-1.5">
@@ -656,27 +646,39 @@ function ScheduleGroup({
             No sessions configured.
           </p>
         ) : (
-          sessions.map((session) => (
-            <button
-              key={session.id}
-              type="button"
-              onClick={() => onSelectSession(session.id)}
-              className={cn(
-                'flex min-h-10 w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-all',
-                selectedSessionId === session.id
-                  ? 'border-brand-200 bg-brand-50 text-brand-700'
-                  : 'border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-200 hover:bg-white'
-              )}
-            >
-              <span>
-                <span className="block text-xs font-bold">{session.label}</span>
-                <span className="text-[11px] text-slate-500">{formatSessionWindow(session)}</span>
-              </span>
-              <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 ring-1 ring-slate-200">
-                {recordCountsBySession.get(session.id) ?? 0}
-              </span>
-            </button>
-          ))
+          sessions.map((session) => {
+            const status = windowStatus(session.openAt, session.closeAt, now);
+            const meta = SESSION_STATUS[status];
+            return (
+              <button
+                key={session.id}
+                type="button"
+                onClick={() => onSelectSession(session.id)}
+                className={cn(
+                  'flex min-h-10 w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-all',
+                  selectedSessionId === session.id
+                    ? 'border-brand-200 bg-brand-50 text-brand-700'
+                    : 'border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-200 hover:bg-white'
+                )}
+              >
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span className={cn('h-2 w-2 shrink-0 rounded-full', meta.dot)} title={meta.label} />
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold">{session.label}</span>
+                      <span className={cn('rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide', meta.chip)}>
+                        {meta.label}
+                      </span>
+                    </span>
+                    <span className="block text-[11px] text-slate-500">{formatSessionWindow(session)}</span>
+                  </span>
+                </span>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 ring-1 ring-slate-200">
+                  {recordCountsBySession.get(session.id) ?? 0}
+                </span>
+              </button>
+            );
+          })
         )}
       </div>
     </div>
@@ -996,6 +998,22 @@ function getInitials(firstName: string, lastName: string) {
 function dateValue(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+type WindowStatus = 'open' | 'upcoming' | 'closed';
+
+const SESSION_STATUS: Record<WindowStatus, { label: string; dot: string; chip: string }> = {
+  open:     { label: 'Open',   dot: 'bg-success-500 animate-pulse', chip: 'bg-success-50 text-success-700' },
+  upcoming: { label: 'Soon',   dot: 'bg-warning-500',               chip: 'bg-warning-50 text-warning-700' },
+  closed:   { label: 'Closed', dot: 'bg-slate-300',                 chip: 'bg-slate-100 text-slate-500' },
+};
+
+function windowStatus(openAt: string, closeAt: string, now: number): WindowStatus {
+  const open = dateValue(openAt);
+  const close = dateValue(closeAt);
+  if (open && now < open) return 'upcoming';
+  if (close && now > close) return 'closed';
+  return 'open';
 }
 
 function formatDateRange(event: Event) {

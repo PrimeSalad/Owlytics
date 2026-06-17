@@ -11,7 +11,7 @@ export const attendanceRouter = Router();
 
 attendanceRouter.use(requireAuth);
 
-attendanceRouter.post('/schedules', requireRole('Secretary'), createSchedule);
+attendanceRouter.post('/schedules', requireRole('President', 'Secretary'), createSchedule);
 attendanceRouter.get('/schedules/:eventId', getSchedules);
 attendanceRouter.post('/scan', requireRole('Attendance'), requireSectionAccess, scanQR);
 attendanceRouter.post('/sync', requireRole('Attendance'), requireSectionAccess, syncOffline);

@@ -710,7 +710,7 @@ const DEFAULT_SECTION_OPTIONS = COURSES.flatMap((course) =>
 
 function SectionPicker({
   value,
-  existingSections,
+  existingSections: _existingSections,
   error,
   onChange,
 }: {

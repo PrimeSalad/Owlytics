@@ -359,7 +359,7 @@ export async function resolveReport(req: Request, res: Response) {
 // ── compile PDF ───────────────────────────────────────────────────────────────
 
 export async function compileAccomplishment(req: Request, res: Response) {
-  const { eventId } = req.params;
+  const eventId = req.params.eventId as string;
   const { eventIds: bodyEventIds, sectionOrder, isFinal, presidentName, secretaryName, academicYear, orgName, preparedBy } = compileReportSchema.parse(req.body);
 
   const ids = bodyEventIds?.length ? bodyEventIds : [eventId];
@@ -410,7 +410,7 @@ export async function compileAccomplishment(req: Request, res: Response) {
 // ── compile Word ──────────────────────────────────────────────────────────────
 
 export async function compileAccomplishmentWord(req: Request, res: Response) {
-  const { eventId } = req.params;
+  const eventId = req.params.eventId as string;
   const { eventIds: bodyEventIds, sectionOrder, isFinal, presidentName, secretaryName, academicYear, orgName, preparedBy } = compileReportSchema.parse(req.body);
 
   const ids = bodyEventIds?.length ? bodyEventIds : [eventId];

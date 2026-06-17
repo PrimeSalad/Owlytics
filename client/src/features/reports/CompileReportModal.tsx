@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { GripVertical, Download, CheckCircle2, FileText, AlertCircle, User } from 'lucide-react';
+import { GripVertical, Download, CheckCircle2, FileText, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, Button, Spinner } from '@/components/ui';
-import { useCompileReportWord, useExports, useEvents } from './useReports';
+import { useCompileReportWord, useEvents } from './useReports';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
-import type { Event, Report, AccomplishmentExport } from '@/types';
+import type { Event, Report } from '@/types';
 
 interface Props { open: boolean; onClose: () => void }
 
@@ -55,8 +55,6 @@ export function CompileReportModal({ open, onClose }: Props) {
 
   const { data: events = [] }  = useEvents();
   const compileWord = useCompileReportWord();
-  // We use the first event ID for listing exports for now
-  const { data: exports = [] } = useExports(selectedEventIds.length > 0 ? selectedEventIds[0] : null);
 
   const { data: reports = [], isLoading: loadingReports } = useQuery({
     queryKey: ['reports', { eventIds: selectedEventIds, status: 'Approved', type: 'Accomplishment' }],

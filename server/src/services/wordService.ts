@@ -65,7 +65,7 @@ function p(runs: TextRun[], align?: string): Paragraph {
   });
 }
 
-function empty(align = AlignmentType.LEFT): Paragraph {
+function empty(align: string = AlignmentType.LEFT): Paragraph {
   return new Paragraph({ alignment: align as any, children: [] });
 }
 
