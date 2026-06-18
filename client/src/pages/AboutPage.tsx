@@ -196,11 +196,11 @@ export function AboutPage() {
             </span>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="flex flex-wrap justify-center gap-4">
             {TEAM.map((dev) => (
               <div
                 key={dev.name}
-                className="group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white/60 p-6 text-center transition-all duration-300 ease-out-expo hover:-translate-y-1.5 hover:border-brand-200 hover:shadow-card-hover"
+                className="group relative w-full overflow-hidden rounded-2xl border border-slate-200/70 bg-white/60 p-6 text-center transition-all duration-300 ease-out-expo hover:-translate-y-1.5 hover:border-brand-200 hover:shadow-card-hover sm:w-72"
               >
                 <div
                   className={cn(
