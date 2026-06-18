@@ -38,7 +38,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside className={cn(
       'relative flex h-screen shrink-0 flex-col border-r border-white/[0.06] bg-[#080f0c] transition-all duration-300',
-      collapsed ? 'w-[60px]' : 'w-[220px]',
+      // Collapse only applies on desktop; the mobile drawer is always full width.
+      collapsed ? 'w-[60px] max-md:w-[220px]' : 'w-[220px]',
     )}>
 
       {/* Logo */}
@@ -136,11 +137,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </button>
       </div>
 
-      {/* Collapse toggle */}
+      {/* Collapse toggle — desktop only (mobile uses the drawer + overlay) */}
       <button
         onClick={onToggle}
         aria-label={collapsed ? 'Expand' : 'Collapse'}
-        className="absolute -right-3 top-[72px] z-10 flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-[#0d1a14] text-white/30 shadow-md transition-all duration-200 hover:border-brand-500/40 hover:bg-brand-500/10 hover:text-brand-400"
+        className="absolute -right-3 top-[72px] z-10 hidden h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-[#0d1a14] text-white/30 shadow-md transition-all duration-200 hover:border-brand-500/40 hover:bg-brand-500/10 hover:text-brand-400 md:flex"
       >
         <ChevronLeft className={cn('h-3 w-3 transition-transform duration-300', collapsed && 'rotate-180')} />
       </button>

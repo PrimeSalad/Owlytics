@@ -17,3 +17,12 @@ export const env = {
   EMAIL_PASS: process.env.EMAIL_PASS ?? '',
   FRONTEND_URL: process.env.FRONTEND_URL ?? 'http://localhost:5173',
 } as const;
+
+/**
+ * Allowed CORS origins. FRONTEND_URL may be a comma-separated list so you can
+ * permit your production domain plus Vercel preview URLs, e.g.
+ * "https://app.vercel.app,https://app-git-main.vercel.app".
+ */
+export const allowedOrigins = env.FRONTEND_URL.split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);

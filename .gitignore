@@ -8,3 +8,9 @@ build
 .turbo
 .DS_Store
 coverage
+
+# Local scratch / build artifacts
+__blobstorage__
+temp_unzip
+temp_template*
+*.local

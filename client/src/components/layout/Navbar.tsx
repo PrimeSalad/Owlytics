@@ -91,7 +91,7 @@ export function Navbar({ onMenuClick, title }: NavbarProps) {
           </button>
 
           {open && (
-            <div className="absolute right-0 mt-2 w-[340px] animate-fade-up overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
+            <div className="absolute right-0 mt-2 w-[calc(100vw-1.5rem)] max-w-[340px] animate-fade-up overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
               {/* Header */}
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
                 <div>

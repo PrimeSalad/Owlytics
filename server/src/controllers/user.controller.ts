@@ -5,7 +5,7 @@ import { createUserSchema, updateUserSchema } from '../validators/user.validator
 import { logAction } from '../utils/auditLogger';
 
 export async function listUsers(_req: Request, res: Response) {
-  let query = supabase
+  const query = supabase
     .from('profiles')
     .select(`
       id,
@@ -14,6 +14,7 @@ export async function listUsers(_req: Request, res: Response) {
       last_name,
       role,
       avatar_url,
+      avatar_color,
       section_id,
       is_active,
       last_login,
@@ -44,13 +45,14 @@ export async function listUsers(_req: Request, res: Response) {
         last_name,
         role,
         avatar_url,
+        avatar_color,
         section_id,
         is_active,
         last_login,
         created_at
       `)
       .order('created_at', { ascending: false });
-    data = fallbackRes.data;
+    data = fallbackRes.data as typeof data;
     error = fallbackRes.error;
   }
 
@@ -62,7 +64,7 @@ export async function listUsers(_req: Request, res: Response) {
     ? {}
     : Object.fromEntries(authList.users.map((u) => [u.id, u.email ?? '']));
 
-  res.json(data.map((p: any) => {
+  res.json((data ?? []).map((p: any) => {
     let assignedSection = null;
     if (p.section_id && p.sections) {
       const section = p.sections;
@@ -76,6 +78,7 @@ export async function listUsers(_req: Request, res: Response) {
       email: emailMap[p.id] ?? '',
       role: p.role,
       avatarUrl: p.avatar_url,
+      avatarColor: p.avatar_color ?? 0,
       sectionId: p.section_id,
       assignedSection,
       isActive: p.is_active,
@@ -230,7 +233,11 @@ export async function updateUser(req: Request, res: Response) {
   } else if (data.avatarUrl !== undefined) {
     updatePayload.avatar_url = data.avatarUrl;
   }
-  
+
+  if (data.avatarColor !== undefined) {
+    updatePayload.avatar_color = data.avatarColor;
+  }
+
   // Need something to update
   if (Object.keys(updatePayload).length === 0) {
     return res.json({ message: 'Nothing to update' });

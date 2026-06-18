@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
-import { disconnectSocket } from '@/lib/socket';
+import { connectSocket, disconnectSocket } from '@/lib/socket';
 import type { User } from '@/types';
 
 interface AuthState {
@@ -30,6 +30,7 @@ export const useAuthStore = create<AuthState>()(
             headers: { Authorization: `Bearer ${data.session.access_token}` },
           });
           set({ user: profile });
+          connectSocket();
         } finally {
           set({ isLoading: false });
         }
@@ -48,6 +49,7 @@ export const useAuthStore = create<AuthState>()(
           if (!session) { set({ user: null }); return; }
           const { data: profile } = await api.get<User>('/auth/me');
           set({ user: profile });
+          connectSocket();
         } catch {
           set({ user: null });
         } finally {

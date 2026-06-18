@@ -1,8 +1,10 @@
-import { type ElementType, useMemo, useState } from 'react';
+import { type ElementType, useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Edit2,
+  Info,
   LockKeyhole,
+  MapPin,
   Search,
   ShieldCheck,
   Trash2,
@@ -11,8 +13,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
-import { Badge, Button, Card, CardBody, Input, Modal, Spinner } from '@/components/ui';
-import { SectionSelector } from '@/components/ui/SectionSelector';
+import { Badge, Button, Card, CardBody, EmptyState, Input, Modal, SectionSelector, Spinner } from '@/components/ui';
 import { api } from '@/lib/api';
 import type { User, UserRole } from '@/types';
 import { useForm } from 'react-hook-form';
@@ -186,18 +187,17 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
           {isLoading ? (
             <div className="flex justify-center py-16"><Spinner size="lg" /></div>
           ) : error ? (
-            <div className="px-6 py-20 text-center">
-              <p className="text-sm font-semibold text-danger-700">Failed to load accounts</p>
-              <p className="mt-1 text-xs text-slate-400">{(error as any)?.response?.data?.error ?? (error as any)?.message ?? 'Unknown error'}</p>
-            </div>
+            <EmptyState
+              icon={Info}
+              title="Failed to load accounts"
+              description={(error as any)?.response?.data?.error ?? (error as any)?.message ?? 'Unknown error'}
+            />
           ) : filteredUsers.length === 0 ? (
-            <div className="px-6 py-20 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted">
-                <UsersIcon className="h-6 w-6 text-slate-300" />
-              </div>
-              <p className="text-sm font-semibold text-slate-700">No account access found</p>
-              <p className="mt-1 text-xs text-slate-400">Adjust the search or role filter.</p>
-            </div>
+            <EmptyState
+              icon={UsersIcon}
+              title="No account access found"
+              description="Adjust the search or role filter."
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-sm">
@@ -236,11 +236,16 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
                       </td>
                       <td className="px-6 py-4">
                         {u.assignedSection ? (
-                          <div className="max-w-[180px]">
-                            <p className="text-xs font-bold text-brand-700 truncate">{u.assignedSection}</p>
-                          </div>
+                          <span className="inline-flex max-w-[180px] items-center gap-1.5 rounded-lg border border-brand-100 bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700">
+                            <MapPin className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{u.assignedSection}</span>
+                          </span>
+                        ) : u.role === 'Attendance' ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                            <Info className="h-3 w-3 shrink-0" /> No section yet
+                          </span>
                         ) : (
-                          <p className="text-[10px] text-slate-400 font-medium">None</p>
+                          <span className="text-xs font-medium text-slate-300">—</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -318,6 +323,19 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
   );
 }
 
+/** Explains what assigning a section to an Attendance member actually does. */
+function AttendanceAssignmentNote() {
+  return (
+    <div className="flex gap-2.5 rounded-xl border border-brand-100 bg-brand-50/60 p-3">
+      <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
+      <p className="text-xs leading-relaxed text-brand-800">
+        <span className="font-semibold">Attendance members are tied to one section.</span> Pick the section
+        below and this account will only see and scan the students assigned to it.
+      </p>
+    </div>
+  );
+}
+
 function AccessMetric({
   label,
   value,
@@ -367,6 +385,14 @@ function CreateMemberModal({
 
   const selectedRole = watch('role');
   const sectionId = watch('sectionId');
+
+  // Drop any stale section assignment the moment the role no longer needs one,
+  // so a non-Attendance account can never be saved with a leftover section.
+  useEffect(() => {
+    if (selectedRole !== 'Attendance' && sectionId) {
+      setValue('sectionId', undefined, { shouldValidate: true });
+    }
+  }, [selectedRole, sectionId, setValue]);
 
   return (
     <Modal
@@ -419,12 +445,17 @@ function CreateMemberModal({
         </div>
 
         {selectedRole === 'Attendance' && (
-          <SectionSelector
-            value={sectionId}
-            onChange={(id) => setValue('sectionId', id, { shouldValidate: true })}
-            required
-            onlyActiveDirectory={true}
-          />
+          <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+            <AttendanceAssignmentNote />
+            <SectionSelector
+              value={sectionId}
+              onChange={(id) => setValue('sectionId', id || undefined, { shouldValidate: true })}
+              required
+              onlyActiveDirectory={true}
+              error={errors.sectionId?.message}
+              hint="This member will only scan and manage students in this section."
+            />
+          </div>
         )}
 
         <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
@@ -469,6 +500,14 @@ function EditMemberModal({
   const selectedRole = watch('role');
   const sectionId = watch('sectionId');
 
+  // When the role moves away from Attendance, explicitly clear the section so the
+  // backend wipes section_id (null) instead of keeping a stale assignment.
+  useEffect(() => {
+    if (selectedRole !== 'Attendance' && sectionId) {
+      setValue('sectionId', null, { shouldValidate: true });
+    }
+  }, [selectedRole, sectionId, setValue]);
+
   return (
     <Modal
       open
@@ -491,14 +530,16 @@ function EditMemberModal({
         </div>
         
         {selectedRole === 'Attendance' && (
-          <div className="animate-in slide-in-from-top-2 duration-300">
+          <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+            <AttendanceAssignmentNote />
             <SectionSelector
               value={sectionId || undefined}
-              onChange={(id) => setValue('sectionId', id, { shouldValidate: true })}
+              onChange={(id) => setValue('sectionId', id || null, { shouldValidate: true })}
               required
               onlyActiveDirectory={true}
+              error={errors.sectionId?.message}
+              hint="This member will only scan and manage students in this section."
             />
-            {errors.sectionId && <p className="mt-1 text-xs text-danger font-medium ml-1">{errors.sectionId.message}</p>}
           </div>
         )}
         

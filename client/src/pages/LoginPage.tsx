@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
@@ -144,13 +144,22 @@ export default function LoginPage() {
               {...register('password')}
             />
 
+            <div className="flex justify-end -mt-1">
+              <Link
+                to="/forgot-password"
+                className="text-xs font-semibold text-brand-600 hover:text-brand-700 transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
+
             <Button type="submit" className="w-full" loading={isLoading} size="lg">
               Sign in to Owlytics
             </Button>
           </form>
 
           <p className="mt-6 text-center text-xs text-slate-400">
-            Forgot your password? Contact your organization administrator.
+            Trouble signing in? Contact your organization administrator.
           </p>
         </div>
       </div>

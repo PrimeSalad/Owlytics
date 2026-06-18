@@ -31,4 +31,5 @@ export const updateUserSchema = z.object({
   name: z.object({ first: z.string().min(1), last: z.string().min(1) }).optional(),
   avatarUrl: z.string().nullable().optional(),
   avatarImage: z.string().nullable().optional(), // For base64 images if needed
+  avatarColor: z.number().int().min(0).max(50).optional(),
 });

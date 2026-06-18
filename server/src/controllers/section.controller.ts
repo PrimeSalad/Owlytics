@@ -65,7 +65,7 @@ export async function getCourses(req: Request, res: Response) {
 }
 
 export async function getSectionsByYear(req: Request, res: Response) {
-  const { yearLevel } = req.params;
+  const yearLevel = req.params.yearLevel as string;
 
   const { data, error } = await supabase
     .from('section_details')

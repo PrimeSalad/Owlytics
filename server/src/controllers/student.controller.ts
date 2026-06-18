@@ -15,7 +15,7 @@ export async function listSections(_req: Request, res: Response) {
 }
 
 export async function listStudents(req: Request, res: Response) {
-  const { page = 1, limit = 20, search, yearLevel, section, sectionId, orderBy } = req.query;
+  const { page = 1, limit = 20, search, yearLevel, section, course, block, sectionId, orderBy } = req.query;
   const assignedSectionId = req.assignedSectionId;
   const from = (Number(page) - 1) * Number(limit);
   const to = from + Number(limit) - 1;
@@ -26,9 +26,21 @@ export async function listStudents(req: Request, res: Response) {
   if (search) {
     query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,student_id.ilike.%${search}%`);
   }
-  if (yearLevel) query = query.eq('year_level', Number(yearLevel));
-  if (section) query = query.eq('section', section);
+  if (yearLevel) {
+    query = query.eq('year_level', Number(yearLevel));
+  }
   
+  if (section) {
+    query = query.eq('section', section as string);
+  } else {
+    if (course) {
+      query = query.ilike('section', `${course} %`);
+    }
+    if (block) {
+      query = query.ilike('section', `%-${block}`);
+    }
+  }
+
   if (assignedSectionId) {
     query = query.eq('section_id', assignedSectionId);
   } else if (sectionId) {
@@ -40,12 +52,30 @@ export async function listStudents(req: Request, res: Response) {
 
   // Fallback if join fails for any reason (missing table, column, or relationship)
   if (error) {
-    const fallbackQuery = supabase.from('students').select('*', { count: 'exact' });
-    if (search) fallbackQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,student_id.ilike.%${search}%`);
-    if (yearLevel) fallbackQuery.eq('year_level', Number(yearLevel));
-    if (section) fallbackQuery.eq('section', section);
-    if (assignedSectionId) fallbackQuery.eq('section_id', assignedSectionId);
-    else if (sectionId) fallbackQuery.eq('section_id', sectionId);
+    let fallbackQuery = supabase.from('students').select('*', { count: 'exact' });
+    if (search) {
+      fallbackQuery = fallbackQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,student_id.ilike.%${search}%`);
+    }
+    if (yearLevel) {
+      fallbackQuery = fallbackQuery.eq('year_level', Number(yearLevel));
+    }
+    
+    if (section) {
+      fallbackQuery = fallbackQuery.eq('section', section as string);
+    } else {
+      if (course) {
+        fallbackQuery = fallbackQuery.ilike('section', `${course} %`);
+      }
+      if (block) {
+        fallbackQuery = fallbackQuery.ilike('section', `%-${block}`);
+      }
+    }
+
+    if (assignedSectionId) {
+      fallbackQuery = fallbackQuery.eq('section_id', assignedSectionId);
+    } else if (sectionId) {
+      fallbackQuery = fallbackQuery.eq('section_id', sectionId);
+    }
     
     const fallbackRes = await fallbackQuery.range(from, to).order(sortCol, { ascending: true });
     data = fallbackRes.data;

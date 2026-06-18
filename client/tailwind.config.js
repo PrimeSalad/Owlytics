@@ -84,9 +84,23 @@ export default {
         '2xl': '1.25rem',
       },
       boxShadow: {
-        card: '0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07)',
-        'card-hover': '0 4px 12px 0 rgb(0 0 0 / 0.10)',
-        modal: '0 20px 60px -10px rgb(0 0 0 / 0.25)',
+        // Layered, soft shadows for a premium sense of depth
+        card: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 2px 5px -1px rgb(15 23 42 / 0.06)',
+        'card-hover': '0 10px 28px -8px rgb(15 23 42 / 0.14), 0 4px 10px -4px rgb(15 23 42 / 0.08)',
+        lift: '0 16px 40px -12px rgb(15 23 42 / 0.20)',
+        modal: '0 28px 80px -16px rgb(15 23 42 / 0.38)',
+        'brand-glow': '0 8px 24px -6px rgb(16 185 129 / 0.45)',
+        // Combined inner highlight + soft drop for raised controls (buttons, chips)
+        btn: 'inset 0 1px 0 0 rgb(255 255 255 / 0.18), 0 1px 2px 0 rgb(15 23 42 / 0.12)',
+      },
+      transitionTimingFunction: {
+        'out-expo': 'cubic-bezier(0.16, 1, 0.3, 1)',
+        'spring': 'cubic-bezier(0.34, 1.4, 0.64, 1)',
+      },
+      backgroundImage: {
+        'card-sheen': 'linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%)',
+        'grid-faint':
+          'linear-gradient(to right, rgb(15 23 42 / 0.03) 1px, transparent 1px), linear-gradient(to bottom, rgb(15 23 42 / 0.03) 1px, transparent 1px)',
       },
       keyframes: {
         'fade-in':  { from: { opacity: '0' }, to: { opacity: '1' } },
@@ -94,6 +108,8 @@ export default {
         'slide-in': { from: { opacity: '0', transform: 'translateX(-10px)' }, to: { opacity: '1', transform: 'translateX(0)' } },
         'slide-in-right': { from: { transform: 'translateX(100%)' }, to: { transform: 'translateX(0)' } },
         'spin-slow': { to: { transform: 'rotate(360deg)' } },
+        'scale-in': { from: { opacity: '0', transform: 'scale(0.96)' }, to: { opacity: '1', transform: 'scale(1)' } },
+        'shimmer': { '100%': { transform: 'translateX(100%)' } },
       },
       animation: {
         'fade-in':  'fade-in 0.2s ease-out both',
@@ -101,6 +117,8 @@ export default {
         'slide-in': 'slide-in 0.25s ease-out both',
         'slide-in-right': 'slide-in-right 0.3s cubic-bezier(0.32,0.72,0,1) both',
         'spin-slow': 'spin-slow 1.4s linear infinite',
+        'scale-in': 'scale-in 0.2s cubic-bezier(0.16,1,0.3,1) both',
+        'shimmer': 'shimmer 1.6s infinite',
       },
     },
   },

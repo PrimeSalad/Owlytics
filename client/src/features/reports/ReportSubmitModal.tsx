@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
-import { Modal, Button } from '@/components/ui';
+import { Modal, Button, AiGrammarButton, AiPromptButton } from '@/components/ui';
 import { ImageUploader, type ImageFile } from './ImageUploader';
 import { useCreateReport, useEvents } from './useReports';
 import type { Event } from '@/types';
@@ -35,7 +35,7 @@ export function ReportSubmitModal({ open, onClose, onSuccess }: Props) {
   const { data: events = [] } = useEvents();
   const createReport          = useCreateReport();
 
-  const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { type: 'Accomplishment' },
   });
@@ -43,6 +43,7 @@ export function ReportSubmitModal({ open, onClose, onSuccess }: Props) {
   const selectedEventId = watch('eventId');
   const selectedEvent   = events.find((e: Event) => e._id === selectedEventId);
   const content         = watch('content') ?? '';
+  const objective       = watch('objective') ?? '';
   const reportType      = watch('type');
 
   function handleClose() { reset(); setImages([]); onClose(); }
@@ -110,9 +111,19 @@ export function ReportSubmitModal({ open, onClose, onSuccess }: Props) {
 
           {/* Row 4: Narrative */}
           <div>
-            <div className="flex justify-between mb-1">
+            <div className="flex items-center justify-between mb-1">
               <label className="text-[11px] font-medium text-slate-500">Narrative <span className="text-red-400">*</span></label>
-              <span className="text-[10px] text-slate-400">{content.length}/5000</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-400">{content.length}/5000</span>
+                <AiPromptButton
+                  text={content}
+                  onApply={(v) => setValue('content', v, { shouldValidate: true, shouldDirty: true })}
+                />
+                <AiGrammarButton
+                  text={content}
+                  onApply={(v) => setValue('content', v, { shouldValidate: true, shouldDirty: true })}
+                />
+              </div>
             </div>
             <textarea
               {...register('content')}
@@ -127,7 +138,19 @@ export function ReportSubmitModal({ open, onClose, onSuccess }: Props) {
           {reportType === 'Accomplishment' && (
             <>
               <div>
-                <label className="text-[11px] font-medium text-slate-500 mb-1 block">Objective</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-medium text-slate-500">Objective</label>
+                  <div className="flex items-center gap-2">
+                    <AiPromptButton
+                      text={objective}
+                      onApply={(v) => setValue('objective', v, { shouldValidate: true, shouldDirty: true })}
+                    />
+                    <AiGrammarButton
+                      text={objective}
+                      onApply={(v) => setValue('objective', v, { shouldValidate: true, shouldDirty: true })}
+                    />
+                  </div>
+                </div>
                 <textarea
                   {...register('objective')}
                   rows={2}

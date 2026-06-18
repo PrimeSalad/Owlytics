@@ -1,47 +1,121 @@
 import { useState, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { User, Mail, Shield, Camera, Check, X, Hash, Calendar } from 'lucide-react';
+import { User, Mail, Shield, Camera, Check, X, Hash, Calendar, Lock, Eye, EyeOff, KeyRound, Sparkles, ExternalLink, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
 import { Button, Card, CardBody, Input, Badge } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
 import { cn, roleLabel, AVATAR_COLORS } from '@/lib/utils';
+import { setGeminiKey as saveGeminiKey, clearGeminiKey, hasGeminiKey, GEMINI_KEY_URL } from '@/lib/aiGrammar';
+
+/** Downscale + center-crop to a small square JPEG so avatars stay compact and load fast. */
+function resizeImage(file: File, size = 256): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('decode failed'));
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('no canvas'));
+        const scale = Math.max(size / img.width, size / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 export function SettingsPage() {
   const { user, fetchMe } = useAuthStore();
   const [firstName, setFirstName] = useState(user?.name.first || '');
   const [lastName, setLastName] = useState(user?.name.last || '');
-  const [avatarColor, setAvatarColor] = useState(0);
+  const [avatarColor, setAvatarColor] = useState(user?.avatarColor ?? 0);
   const [avatarImage, setAvatarImage] = useState<string | null>(user?.avatarUrl || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Password change
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
+
+  // Gemini AI key — stored only on this device (localStorage), never on the server
+  const [geminiKey, setGeminiKeyInput] = useState('');
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [geminiConnected, setGeminiConnected] = useState(() => hasGeminiKey());
+
+  const handleSaveGeminiKey = () => {
+    const k = geminiKey.trim();
+    if (!k) return toast.error('Paste your Gemini API key first');
+    saveGeminiKey(k);
+    setGeminiConnected(true);
+    setGeminiKeyInput('');
+    toast.success('Gemini API key saved on this device');
+  };
+
+  const handleRemoveGeminiKey = () => {
+    clearGeminiKey();
+    setGeminiConnected(false);
+    setGeminiKeyInput('');
+    toast('Gemini API key removed from this device');
+  };
+
   const mutation = useMutation({
     mutationFn: (data: { firstName: string; lastName: string; avatarColor?: number; avatarImage?: string | null }) =>
-      api.patch(`/users/${user!._id}`, { 
+      api.patch(`/users/${user!._id}`, {
         name: { first: data.firstName, last: data.lastName },
         avatarColor: data.avatarColor,
         avatarImage: data.avatarImage,
       }),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Profile updated successfully');
-      fetchMe();
+      await fetchMe();
     },
-    onError: () => toast.error('Failed to update profile'),
+    onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to update profile'),
   });
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const passwordMutation = useMutation({
+    mutationFn: () => api.patch('/auth/me/password', { currentPassword, newPassword }),
+    onSuccess: () => {
+      toast.success('Password changed successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to change password'),
+  });
+
+  const handleChangePassword = () => {
+    if (newPassword.length < 8) return toast.error('New password must be at least 8 characters');
+    if (newPassword !== confirmPassword) return toast.error('New passwords do not match');
+    passwordMutation.mutate();
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('Image must be less than 2MB');
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file');
       return;
     }
-
-    const reader = new FileReader();
-    reader.onload = () => setAvatarImage(reader.result as string);
-    reader.readAsDataURL(file);
+    try {
+      setAvatarImage(await resizeImage(file));
+    } catch {
+      toast.error('Could not read that image. Try another one.');
+    } finally {
+      // allow re-selecting the same file
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const currentColor = AVATAR_COLORS[avatarColor];
@@ -200,7 +274,7 @@ export function SettingsPage() {
                 onClick={() => {
                   setFirstName(user?.name.first || '');
                   setLastName(user?.name.last || '');
-                  setAvatarColor(0);
+                  setAvatarColor(user?.avatarColor ?? 0);
                   setAvatarImage(user?.avatarUrl || null);
                 }}
                 className="flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-700"
@@ -217,6 +291,142 @@ export function SettingsPage() {
                 <Check className="h-4 w-4" />
                 Save Profile
               </Button>
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Password & Security */}
+        <Card>
+          <CardBody className="p-8 space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                <KeyRound className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Password & Security</h3>
+                <p className="mt-0.5 text-sm text-slate-500">Change the password you use to sign in.</p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 border-t border-slate-100 pt-6 sm:grid-cols-2">
+              <Input
+                label="Current Password"
+                type={showPw ? 'text' : 'password'}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                leftIcon={<Lock className="h-4 w-4" />}
+                autoComplete="current-password"
+                placeholder="••••••••"
+                rightIcon={
+                  <button type="button" onClick={() => setShowPw((v) => !v)} className="text-slate-400 hover:text-slate-600" aria-label={showPw ? 'Hide passwords' : 'Show passwords'}>
+                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                }
+              />
+              <div className="hidden sm:block" />
+              <Input
+                label="New Password"
+                type={showPw ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                leftIcon={<Lock className="h-4 w-4" />}
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
+                hint="Use at least 8 characters."
+              />
+              <Input
+                label="Confirm New Password"
+                type={showPw ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                leftIcon={<Lock className="h-4 w-4" />}
+                autoComplete="new-password"
+                placeholder="Re-type new password"
+                error={confirmPassword && newPassword !== confirmPassword ? 'Passwords do not match' : undefined}
+              />
+            </div>
+
+            <div className="flex justify-end border-t border-slate-100 pt-6">
+              <Button
+                onClick={handleChangePassword}
+                loading={passwordMutation.isPending}
+                disabled={!currentPassword || !newPassword || !confirmPassword}
+              >
+                <KeyRound className="h-4 w-4" />
+                Update Password
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* AI Writing Assistant */}
+        <Card>
+          <CardBody className="p-8 space-y-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-btn">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">AI Writing Assistant</h3>
+                  <p className="mt-0.5 text-sm text-slate-500">Connect your free Google Gemini key to fix grammar in reports.</p>
+                </div>
+              </div>
+              <Badge
+                variant="default"
+                className={cn(
+                  'font-bold uppercase tracking-wider',
+                  geminiConnected
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-slate-100 text-slate-500 border-slate-200',
+                )}
+              >
+                {geminiConnected ? 'Connected' : 'Not connected'}
+              </Badge>
+            </div>
+
+            <div className="space-y-4 border-t border-slate-100 pt-6">
+              <Input
+                label={geminiConnected ? 'Replace API Key' : 'Gemini API Key'}
+                type={showGeminiKey ? 'text' : 'password'}
+                value={geminiKey}
+                onChange={(e) => setGeminiKeyInput(e.target.value)}
+                leftIcon={<KeyRound className="h-4 w-4" />}
+                autoComplete="off"
+                placeholder={geminiConnected ? 'Paste a new key to replace the saved one…' : 'Paste your Gemini API key…'}
+                hint="Stored only on this device — never sent to our servers."
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowGeminiKey((v) => !v)}
+                    className="text-slate-400 hover:text-slate-600"
+                    aria-label={showGeminiKey ? 'Hide key' : 'Show key'}
+                  >
+                    {showGeminiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                }
+              />
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <a
+                  href={GEMINI_KEY_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline"
+                >
+                  Get a free key <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+                <div className="flex items-center gap-2">
+                  {geminiConnected && (
+                    <Button variant="secondary" onClick={handleRemoveGeminiKey}>
+                      <Trash2 className="h-4 w-4" /> Remove key
+                    </Button>
+                  )}
+                  <Button onClick={handleSaveGeminiKey} disabled={!geminiKey.trim()}>
+                    <Check className="h-4 w-4" /> {geminiConnected ? 'Update Key' : 'Save Key'}
+                  </Button>
+                </div>
+              </div>
             </div>
           </CardBody>
         </Card>
