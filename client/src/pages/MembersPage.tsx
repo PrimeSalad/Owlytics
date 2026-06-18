@@ -441,7 +441,9 @@ function CreateMemberModal({
             <option value="Committee">Committee</option>
             <option value="Attendance">Attendance Committee</option>
             <option value="Secretary">Secretary</option>
+            <option value="VicePresident">Vice President</option>
             <option value="President">President</option>
+            <option value="Adviser">Adviser</option>
           </select>
           {errors.role && <p className="mt-1 text-xs text-danger">{errors.role.message}</p>}
         </div>
