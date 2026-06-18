@@ -49,12 +49,6 @@ const TEAM = [
     color: 'from-brand-500 to-emerald-600',
   },
   {
-    name: 'Jayson Nunez',
-    title: 'Backend Developer',
-    roles: ['Database Engineer', 'API Developer', 'Server Management'],
-    color: 'from-sky-500 to-blue-600',
-  },
-  {
     name: 'Mark John Matining',
     title: 'Backend Developer',
     roles: ['API Specialist', 'Integration', 'System Testing'],
