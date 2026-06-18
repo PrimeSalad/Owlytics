@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Megaphone, Send, X, MessageCircle, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { cn } from '@/lib/utils';
+import { cn, roleSatisfies } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useChat, type ChatMessage } from '@/features/chat/useChat';
 
@@ -35,7 +35,7 @@ export function FloatingChat() {
   const [lastSeen, setLastSeen] = useState<number>(() => Number(localStorage.getItem('chat_last_seen') || 0));
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const canAnnounce = user?.role === 'President' || user?.role === 'Secretary';
+  const canAnnounce = roleSatisfies(user?.role, ['President', 'Secretary']);
 
   const unread = messages.filter(
     (m) => new Date(m.createdAt).getTime() > lastSeen && m.author?.id !== user?._id,

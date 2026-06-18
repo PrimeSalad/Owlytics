@@ -13,9 +13,9 @@ studentRouter.use(requireAuth);
 
 studentRouter.get('/sections', requireRole('Secretary', 'Officer', 'President'), listSections);
 studentRouter.get('/', requireRole('Secretary', 'Officer', 'President', 'Attendance'), filterByAssignedSection, listStudents);
-studentRouter.post('/', requireRole('President', 'Secretary'), createStudent);
-studentRouter.post('/bulk', requireRole('President', 'Secretary'), bulkCreateStudents);
-studentRouter.post('/import', requireRole('President', 'Secretary'), upload.single('file'), importStudents);
+studentRouter.post('/', requireRole('President', 'Secretary', 'Officer'), createStudent);
+studentRouter.post('/bulk', requireRole('President', 'Secretary', 'Officer'), bulkCreateStudents);
+studentRouter.post('/import', requireRole('President', 'Secretary', 'Officer'), upload.single('file'), importStudents);
 studentRouter.get('/:id', requireRole('Secretary', 'Officer', 'President', 'Attendance'), getStudent);
 studentRouter.patch('/:id', requireRole('President', 'Secretary'), updateStudent);
 studentRouter.delete('/:id', requireRole('President', 'Secretary'), deleteStudent);

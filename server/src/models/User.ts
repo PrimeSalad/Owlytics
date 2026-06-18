@@ -1,6 +1,13 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
-export type UserRole = 'President' | 'Secretary' | 'Officer' | 'Committee' | 'Attendance';
+export type UserRole =
+  | 'President'
+  | 'Secretary'
+  | 'Officer'
+  | 'Committee'
+  | 'Attendance'
+  | 'VicePresident'
+  | 'Adviser';
 
 export interface IUser extends Document {
   studentId: string;
@@ -25,7 +32,7 @@ const userSchema = new Schema<IUser>(
     password: { type: String, required: true, select: false },
     role: {
       type: String,
-      enum: ['President', 'Secretary', 'Officer', 'Committee', 'Attendance'],
+      enum: ['President', 'Secretary', 'Officer', 'Committee', 'Attendance', 'VicePresident', 'Adviser'],
       required: true,
     },
     avatarUrl: String,

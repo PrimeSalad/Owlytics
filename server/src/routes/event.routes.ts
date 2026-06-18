@@ -13,7 +13,9 @@ eventRouter.use(requireAuth);
 eventRouter.get('/', listEvents);
 eventRouter.post('/', requireRole('President', 'Officer'), createEvent);
 eventRouter.get('/:id', getEvent);
-eventRouter.patch('/:id', requireRole('President', 'Officer'), updateEvent);
+// Officers can edit event details; the controller additionally restricts
+// *status* changes to President / Secretary (and their aliases Adviser / VP).
+eventRouter.patch('/:id', requireRole('President', 'Secretary', 'Officer'), updateEvent);
 eventRouter.delete('/:id', requireRole('President'), deleteEvent);
-eventRouter.post('/:id/activities', requireRole('Officer'), addActivity);
-eventRouter.patch('/:id/activities/:actId', requireRole('Officer', 'Committee'), updateActivity);
+eventRouter.post('/:id/activities', requireRole('President', 'Secretary', 'Officer'), addActivity);
+eventRouter.patch('/:id/activities/:actId', requireRole('President', 'Secretary', 'Officer', 'Committee'), updateActivity);

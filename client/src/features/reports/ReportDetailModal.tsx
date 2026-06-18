@@ -4,7 +4,7 @@ import { CheckCircle2, XCircle, AlertTriangle, ChevronLeft, ChevronRight, X, Tra
 import toast from 'react-hot-toast';
 import { Modal, Button } from '@/components/ui';
 import { useReport, useApproveReport, useRejectReport, useResolveReport, useDeleteReport, useUpdateReport } from './useReports';
-import { cn } from '@/lib/utils';
+import { cn, roleSatisfies } from '@/lib/utils';
 import type { UserRole } from '@/types';
 import { api } from '@/lib/api';
 
@@ -46,10 +46,10 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
     }
   }, [reportId, report]);
 
-  const canReview = ['Officer', 'Secretary', 'President'].includes(userRole);
+  const canReview = roleSatisfies(userRole, ['Officer', 'Secretary', 'President']);
   const images    = report?.report_attachments ?? [];
   const isOwner   = report?.author_id === userId;
-  const isAdmin   = ['President', 'Secretary'].includes(userRole);
+  const isAdmin   = roleSatisfies(userRole, ['President', 'Secretary']);
   const canDelete = isOwner || isAdmin;
   const canEdit   = isOwner || isAdmin;
   const showEditButton = canEdit && !confirmDel && !showReject && (isAdmin || report?.status !== 'Approved');

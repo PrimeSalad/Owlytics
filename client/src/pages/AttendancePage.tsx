@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
 import { Badge, Button, Card, CardBody, Input, Modal, Spinner, StatusBadge } from '@/components/ui';
 import { api } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { cn, roleSatisfies } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import type { Event } from '@/types';
 
@@ -111,7 +111,7 @@ type ScheduleForm = z.infer<typeof scheduleSchema>;
 export function AttendancePage() {
   const qc = useQueryClient();
   const role = useAuthStore((s) => s.user?.role);
-  const canManageSchedules = role === 'President' || role === 'Secretary';
+  const canManageSchedules = roleSatisfies(role, ['President', 'Secretary']);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState('all');

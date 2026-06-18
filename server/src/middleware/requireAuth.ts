@@ -2,7 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import { supabase } from '../config/supabase';
 import { AppError } from './errorHandler';
 
-export type UserRole = 'President' | 'Secretary' | 'Officer' | 'Committee' | 'Attendance';
+export type UserRole =
+  | 'President'
+  | 'Secretary'
+  | 'Officer'
+  | 'Committee'
+  | 'Attendance'
+  | 'VicePresident'
+  | 'Adviser';
 
 export interface AuthPayload {
   userId: string;

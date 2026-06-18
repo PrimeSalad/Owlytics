@@ -9,11 +9,13 @@ export function DashboardPage() {
   const { user } = useAuthStore();
 
   switch (user?.role) {
-    case 'President':  return <PresidentDashboard />;
-    case 'Secretary':  return <SecretaryDashboard />;
-    case 'Officer':    return <OfficerDashboard />;
-    case 'Committee':  return <CommitteeDashboard />;
-    case 'Attendance': return <AttendanceDashboard />;
-    default:           return null;
+    case 'President':
+    case 'Adviser':        return <PresidentDashboard />;
+    case 'Secretary':
+    case 'VicePresident':  return <SecretaryDashboard />;
+    case 'Officer':        return <OfficerDashboard />;
+    case 'Committee':      return <CommitteeDashboard />;
+    case 'Attendance':     return <AttendanceDashboard />;
+    default:               return null;
   }
 }

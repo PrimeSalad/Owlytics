@@ -7,14 +7,16 @@ export const COLUMNS = [
   { id: 'Done' as const,       label: 'Done',        icon: CheckCircle2, color: 'green' },
 ];
 
-export const ALL_ROLES: UserRole[] = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance'];
+export const ALL_ROLES: UserRole[] = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance', 'VicePresident', 'Adviser'];
 
 export const ROLE_COLORS: Record<UserRole, string> = {
-  President:  'bg-brand-100 text-brand-700 border-brand-200',
-  Secretary:  'bg-blue-100 text-blue-700 border-blue-200',
-  Officer:    'bg-amber-100 text-amber-700 border-amber-200',
-  Committee:  'bg-slate-100 text-slate-600 border-slate-200',
-  Attendance: 'bg-green-100 text-green-700 border-green-200',
+  President:     'bg-brand-100 text-brand-700 border-brand-200',
+  Secretary:     'bg-blue-100 text-blue-700 border-blue-200',
+  Officer:       'bg-amber-100 text-amber-700 border-amber-200',
+  Committee:     'bg-slate-100 text-slate-600 border-slate-200',
+  Attendance:    'bg-green-100 text-green-700 border-green-200',
+  Adviser:       'bg-brand-100 text-brand-700 border-brand-200',
+  VicePresident: 'bg-blue-100 text-blue-700 border-blue-200',
 };
 
 export const STATUS_COLORS: Record<Sprint['status'], string> = {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const roles = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance'] as const;
+const roles = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance', 'VicePresident', 'Adviser'] as const;
 
 export const createUserSchema = z.object({
   studentId: z.string().min(1),

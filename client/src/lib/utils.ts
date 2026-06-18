@@ -1,8 +1,31 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import type { UserRole } from '@/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+/**
+ * Role aliases — a role on the left has the SAME permissions as the role on
+ * the right. Adviser ≡ President, VicePresident ≡ Secretary. Keep in sync with
+ * the server (`server/src/middleware/requireRole.ts`).
+ */
+export const ROLE_ALIASES: Partial<Record<UserRole, UserRole>> = {
+  Adviser: 'President',
+  VicePresident: 'Secretary',
+};
+
+/** Collapse an aliased role to its effective permission role. */
+export function resolveRole(role: string | undefined | null): string {
+  if (!role) return '';
+  return ROLE_ALIASES[role as UserRole] ?? role;
+}
+
+/** True if `role` (or the role it inherits from) is in `allowed`. */
+export function roleSatisfies(role: string | undefined | null, allowed: readonly string[]): boolean {
+  if (!role) return false;
+  return allowed.includes(role) || allowed.includes(resolveRole(role));
 }
 
 
@@ -18,5 +41,7 @@ export const AVATAR_COLORS = [
 ];
 
 export function roleLabel(role: string): string {
-  return role === 'Attendance' ? 'Attendance Committee' : role;
+  if (role === 'Attendance') return 'Attendance Committee';
+  if (role === 'VicePresident') return 'Vice President';
+  return role;
 }

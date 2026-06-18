@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
 import { createReportSchema, rejectReportSchema, compileReportSchema, updateReportSchema } from '../validators/report.validator';
 import { generateAccomplishmentPDF, generateSingleReportPDF } from '../services/pdfService';
+import { roleSatisfies } from '../middleware/requireRole';
 
 export async function updateReport(req: Request, res: Response) {
   const { id } = req.params;
@@ -17,7 +18,7 @@ export async function updateReport(req: Request, res: Response) {
   if (fetchErr || !report) throw new AppError(404, 'Report not found');
 
   const isAuthor = report.author_id === req.user!.userId;
-  const isAdmin  = ['President', 'Secretary'].includes(req.user!.role);
+  const isAdmin  = roleSatisfies(req.user!.role, ['President', 'Secretary']);
 
   if (!isAuthor && !isAdmin) {
     throw new AppError(403, 'You do not have permission to edit this report');
@@ -259,8 +260,8 @@ export async function createReport(req: Request, res: Response) {
     req.app.locals.io?.to('role:President').emit('report:emergency', { reportId: report.id, title: report.title });
     
     // Create DB notifications for Emergency
-    const { data: pres } = await supabase.from('profiles').select('id').eq('role', 'President').eq('is_active', true);
-    const { data: sec } = await supabase.from('profiles').select('id').eq('role', 'Secretary').eq('is_active', true);
+    const { data: pres } = await supabase.from('profiles').select('id').in('role', ['President', 'Adviser']).eq('is_active', true);
+    const { data: sec } = await supabase.from('profiles').select('id').in('role', ['Secretary', 'VicePresident']).eq('is_active', true);
     const recipients = [...(pres || []), ...(sec || [])].map(r => r.id);
     if (recipients.length > 0) {
       await supabase.from('notifications').insert(
@@ -465,7 +466,7 @@ export async function deleteReport(req: Request, res: Response) {
   if (fetchErr || !report) throw new AppError(404, 'Report not found');
 
   const isOwner = report.author_id === req.user!.userId;
-  const isAdmin = ['President', 'Secretary'].includes(req.user!.role);
+  const isAdmin = roleSatisfies(req.user!.role, ['President', 'Secretary']);
   if (!isOwner && !isAdmin) throw new AppError(403, 'Insufficient permissions');
 
   // Try to remove storage files — non-fatal

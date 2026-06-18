@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
 import { logAction } from '../utils/auditLogger';
+import { resolveRole } from '../middleware/requireRole';
 
 export async function getMyTasks(req: Request, res: Response) {
   const userId = req.user!.userId;
@@ -47,7 +48,8 @@ export async function listTasks(req: Request, res: Response) {
 
   const userId = req.user!.userId;
   const userRole = req.user!.role;
-  const canSeeAll = userRole === 'President' || userRole === 'Secretary';
+  const effectiveRole = resolveRole(userRole);
+  const canSeeAll = effectiveRole === 'President' || effectiveRole === 'Secretary';
 
   // Collect all unique assignee IDs across tasks
   const allAssigneeIds: string[] = [...new Set(
@@ -94,8 +96,8 @@ export async function createTask(req: Request, res: Response) {
   const { title, description, assignees, visible_to, sprint_id } = req.body;
   if (!sprint_id) throw new AppError(400, 'sprint_id is required');
 
-  const role = req.user!.role;
-  const allRoles = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance'];
+  const role = resolveRole(req.user!.role);
+  const allRoles = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance', 'VicePresident', 'Adviser'];
   const LOCKED: Record<string, string[]> = {
     President: ['President'],
     Secretary: ['President', 'Secretary'],
@@ -138,8 +140,8 @@ export async function updateTask(req: Request, res: Response) {
   if (title) update.title = title;
   if (description !== undefined) update.description = description;
   if (assignees !== undefined) {
-    if (req.user!.role !== 'President') {
-      const allowedRoles = req.user!.role === 'Secretary' ? ['Officer', 'Committee', 'Attendance'] : ['Committee', 'Attendance'];
+    if (resolveRole(req.user!.role) !== 'President') {
+      const allowedRoles = resolveRole(req.user!.role) === 'Secretary' ? ['Officer', 'Committee', 'Attendance'] : ['Committee', 'Attendance'];
       const { data: allowed } = await supabase
         .from('profiles').select('id').in('role', allowedRoles);
       const allowedIds = new Set((allowed ?? []).map((p: any) => p.id));

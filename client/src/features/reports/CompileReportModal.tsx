@@ -6,6 +6,7 @@ import { useCompileReportWord, useEvents } from './useReports';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
+import { roleSatisfies, resolveRole } from '@/lib/utils';
 import type { Event, Report } from '@/types';
 
 interface Props { open: boolean; onClose: () => void }
@@ -16,8 +17,8 @@ export function CompileReportModal({ open, onClose }: Props) {
   const user = useAuthStore((s) => s.user);
   const role = user?.role ?? '';
 
-  // Guard — only President/Secretary
-  if (!['President', 'Secretary'].includes(role)) return null;
+  // Guard — only President/Secretary (and their aliases Adviser/VicePresident)
+  if (!roleSatisfies(role, ['President', 'Secretary'])) return null;
 
   const fullName = user ? `${user.name?.first ?? ''} ${user.name?.last ?? ''}`.trim() : '';
 
@@ -36,10 +37,10 @@ export function CompileReportModal({ open, onClose }: Props) {
   useEffect(() => {
     if (fullName) {
       setPreparedBy(fullName.toUpperCase());
-      if (role === 'President') {
+      if (resolveRole(role) === 'President') {
         setPresidentName(fullName.toUpperCase());
       }
-      if (role === 'Secretary') {
+      if (resolveRole(role) === 'Secretary') {
         setSecretaryName(fullName.toUpperCase());
       }
     }

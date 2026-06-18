@@ -3,7 +3,7 @@ import {
   LayoutDashboard, CalendarDays, ClipboardList,
   FileText, QrCode, LogOut, ChevronLeft, GraduationCap, ShieldCheck, CheckSquare, ListTodo, Settings, Info, Activity,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, roleSatisfies } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import type { UserRole } from '@/types';
 import logo from '@/assets/logo.png';
@@ -28,7 +28,7 @@ interface SidebarProps { collapsed: boolean; onToggle: () => void; }
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
-  const visible = NAV_ITEMS.filter((item) => user && item.roles.includes(user.role));
+  const visible = NAV_ITEMS.filter((item) => user && roleSatisfies(user.role, item.roles));
 
   const handleLogout = async () => {
     await logout();

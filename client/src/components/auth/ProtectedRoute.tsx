@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { PageSpinner } from '@/components/ui';
+import { roleSatisfies } from '@/lib/utils';
 import type { UserRole } from '@/types';
 
 interface ProtectedRouteProps {
@@ -12,7 +13,7 @@ export function ProtectedRoute({ roles }: ProtectedRouteProps) {
 
   if (isLoading) return <PageSpinner />;
   if (!user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
+  if (roles && !roleSatisfies(user.role, roles)) return <Navigate to="/dashboard" replace />;
 
   return <Outlet />;
 }

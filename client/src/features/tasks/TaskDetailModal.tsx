@@ -4,7 +4,7 @@ import { Calendar, Eye, MessageSquare, Send, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Badge, Button, Modal } from '@/components/ui';
 import { api } from '@/lib/api';
-import { cn, roleLabel } from '@/lib/utils';
+import { cn, roleLabel, resolveRole } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import type { Task, UserRole, User } from '@/types';
 import { ALL_ROLES, COLUMNS, ROLE_COLORS } from './constants';
@@ -38,8 +38,8 @@ export function TaskDetailModal({ task, members, canAssign, creatorRole, onClose
 
   const eligibleMembers = members.filter((m) =>
     m.isActive && (
-      creatorRole === 'President' ? true :
-      creatorRole === 'Secretary' ? ['Officer', 'Committee', 'Attendance'].includes(m.role) :
+      resolveRole(creatorRole) === 'President' ? true :
+      resolveRole(creatorRole) === 'Secretary' ? ['Officer', 'Committee', 'Attendance'].includes(m.role) :
       ['Committee', 'Attendance'].includes(m.role)
     )
   );

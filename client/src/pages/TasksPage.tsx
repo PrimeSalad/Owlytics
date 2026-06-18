@@ -13,7 +13,7 @@ import { PageWrapper } from '@/components/layout';
 import { Badge, Button, Card, CardBody, Input, Modal, Spinner } from '@/components/ui';
 import { api } from '@/lib/api';
 import type { Task, UserRole, Sprint, User } from '@/types';
-import { cn, roleLabel } from '@/lib/utils';
+import { cn, roleLabel, roleSatisfies, resolveRole } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 
 const COLUMNS = [
@@ -22,7 +22,7 @@ const COLUMNS = [
   { id: 'Done' as const, label: 'Done', icon: CheckCircle2, color: 'green' },
 ];
 
-const ALL_ROLES: UserRole[] = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance'];
+const ALL_ROLES: UserRole[] = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance', 'VicePresident', 'Adviser'];
 
 const ROLE_COLORS: Record<UserRole, string> = {
   President: 'bg-brand-100 text-brand-700 border-brand-200',
@@ -30,6 +30,8 @@ const ROLE_COLORS: Record<UserRole, string> = {
   Officer: 'bg-amber-100 text-amber-700 border-amber-200',
   Committee: 'bg-slate-100 text-slate-600 border-slate-200',
   Attendance: 'bg-green-100 text-green-700 border-green-200',
+  Adviser: 'bg-brand-100 text-brand-700 border-brand-200',
+  VicePresident: 'bg-blue-100 text-blue-700 border-blue-200',
 };
 
 const STATUS_COLORS: Record<Sprint['status'], string> = {
@@ -137,7 +139,7 @@ export function TasksPage() {
   const [createSprintOpen, setCreateSprintOpen] = useState(false);
   const [draggingTask, setDraggingTask] = useState<Task | null>(null);
   const [onlyMine, setOnlyMine] = useState(false);
-  const canManage = user?.role === 'President' || user?.role === 'Secretary' || user?.role === 'Officer';
+  const canManage = roleSatisfies(user?.role, ['President', 'Secretary', 'Officer']);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const { data: sprints = [], isLoading: sprintsLoading } = useQuery({
@@ -154,7 +156,7 @@ export function TasksPage() {
   const { data: members = [] } = useQuery({
     queryKey: ['users'],
     queryFn: async () => (await api.get<User[]>('/users')).data,
-    enabled: !!activeSprint && (user?.role === 'President' || user?.role === 'Secretary' || user?.role === 'Officer'),
+    enabled: !!activeSprint && roleSatisfies(user?.role, ['President', 'Secretary', 'Officer']),
   });
 
   const deleteSprintMutation = useMutation({
@@ -544,7 +546,7 @@ function CreateTaskModal({ sprintId, role, members, onClose, onSuccess }: {
     Secretary: ['President', 'Secretary'],
     Officer:   ['President', 'Secretary', 'Officer'],
   };
-  const locked = LOCKED[role] ?? ['President'];
+  const locked = LOCKED[resolveRole(role)] ?? ['President'];
 
   const [visibleTo, setVisibleTo] = useState<UserRole[]>([...locked]);
 
@@ -605,7 +607,7 @@ function CreateTaskModal({ sprintId, role, members, onClose, onSuccess }: {
             </label>
             <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
               {members
-                .filter((m) => m.isActive && (role === 'President' ? true : role === 'Secretary' ? (m.role === 'Officer' || m.role === 'Committee' || m.role === 'Attendance') : (m.role === 'Committee' || m.role === 'Attendance')))
+                .filter((m) => m.isActive && (resolveRole(role) === 'President' ? true : resolveRole(role) === 'Secretary' ? (m.role === 'Officer' || m.role === 'Committee' || m.role === 'Attendance') : (m.role === 'Committee' || m.role === 'Attendance')))
                 .map((m) => {
                 const selected = assignees.includes(m._id);
                 return (
@@ -745,7 +747,7 @@ function TaskDetailModal({ task, members, canAssign, creatorRole, onClose, onUpd
                 </div>
           ) : (
             <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
-              {members.filter((m) => m.isActive && (creatorRole === 'President' ? true : creatorRole === 'Secretary' ? (m.role === 'Officer' || m.role === 'Committee' || m.role === 'Attendance') : (m.role === 'Committee' || m.role === 'Attendance'))).map((m) => {
+              {members.filter((m) => m.isActive && (resolveRole(creatorRole) === 'President' ? true : resolveRole(creatorRole) === 'Secretary' ? (m.role === 'Officer' || m.role === 'Committee' || m.role === 'Attendance') : (m.role === 'Committee' || m.role === 'Attendance'))).map((m) => {
                 const selected = assignees.includes(m._id);
                 return (
                   <button key={m._id} type="button" onClick={() => toggleAssignee(m._id)}

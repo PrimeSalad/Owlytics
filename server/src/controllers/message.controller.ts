@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
+import { roleSatisfies } from '../middleware/requireRole';
 
 const createMessageSchema = z.object({
   body: z.string().trim().min(1, 'Message cannot be empty').max(2000),
@@ -66,7 +67,7 @@ export async function listMessages(_req: Request, res: Response) {
 export async function createMessage(req: Request, res: Response) {
   const { body, kind } = createMessageSchema.parse(req.body);
 
-  if (kind === 'announcement' && !['President', 'Secretary'].includes(req.user!.role)) {
+  if (kind === 'announcement' && !roleSatisfies(req.user!.role, ['President', 'Secretary'])) {
     throw new AppError(403, 'Only the President or Secretary can post announcements');
   }
 

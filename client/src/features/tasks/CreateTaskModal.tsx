@@ -4,7 +4,7 @@ import { Eye, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button, Input, Modal } from '@/components/ui';
 import { api } from '@/lib/api';
-import { cn, roleLabel } from '@/lib/utils';
+import { cn, roleLabel, resolveRole } from '@/lib/utils';
 import type { UserRole, User } from '@/types';
 import { ALL_ROLES, ROLE_COLORS } from './constants';
 
@@ -20,7 +20,7 @@ export function CreateTaskModal({ sprintId, role, members, onClose, onSuccess }:
     Secretary: ['President', 'Secretary'],
     Officer:   ['President', 'Secretary', 'Officer'],
   };
-  const locked = LOCKED[role] ?? ['President'];
+  const locked = LOCKED[resolveRole(role)] ?? ['President'];
   const [visibleTo, setVisibleTo] = useState<UserRole[]>([...locked]);
 
   const toggleRole = (r: UserRole) => {
@@ -38,8 +38,8 @@ export function CreateTaskModal({ sprintId, role, members, onClose, onSuccess }:
 
   const eligibleMembers = members.filter((m) =>
     m.isActive && (
-      role === 'President' ? true :
-      role === 'Secretary' ? ['Officer', 'Committee', 'Attendance'].includes(m.role) :
+      resolveRole(role) === 'President' ? true :
+      resolveRole(role) === 'Secretary' ? ['Officer', 'Committee', 'Attendance'].includes(m.role) :
       ['Committee', 'Attendance'].includes(m.role)
     )
   );

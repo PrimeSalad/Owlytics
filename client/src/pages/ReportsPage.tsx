@@ -3,6 +3,7 @@ import { Plus, FileDown, FileText, Clock, CheckCircle2, XCircle } from 'lucide-r
 import { PageWrapper } from '@/components/layout';
 import { Button, Spinner } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
+import { roleSatisfies } from '@/lib/utils';
 import { useReports, useEvents } from '@/features/reports/useReports';
 import { ReportCard } from '@/features/reports/ReportCard';
 import { ReportSubmitModal } from '@/features/reports/ReportSubmitModal';
@@ -47,8 +48,8 @@ export function ReportsPage() {
   });
   const { data: events = [] } = useEvents();
 
-  const canCompile = ['Secretary', 'President'].includes(role);
-  const canReview  = ['Officer', 'Secretary', 'President'].includes(role);
+  const canCompile = roleSatisfies(role, ['Secretary', 'President']);
+  const canReview  = roleSatisfies(role, ['Officer', 'Secretary', 'President']);
 
   // Stats
   const pending  = reports.filter((r) => r.status === 'Submitted').length;

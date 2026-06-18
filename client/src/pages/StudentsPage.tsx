@@ -25,7 +25,7 @@ import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
 import { Badge, Button, Card, CardBody, EmptyState, Input, Modal, Spinner } from '@/components/ui';
 import { api } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { cn, roleSatisfies } from '@/lib/utils';
 import type { Student } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 
@@ -132,7 +132,10 @@ async function renderLabeledQR(student: Student): Promise<Blob | null> {
 export function StudentsPage({ isComponent = false }: { isComponent?: boolean }) {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const canManageStudents = user?.role === 'President' || user?.role === 'Secretary';
+  // President / Secretary (and aliases) can edit, delete, download & print.
+  const canManageStudents = roleSatisfies(user?.role, ['President', 'Secretary']);
+  // Officers may additionally ADD students (single + bulk + import).
+  const canAddStudents = roleSatisfies(user?.role, ['President', 'Secretary', 'Officer']);
   
   const [search, setSearch] = useState('');
   const [combinedFilter, setCombinedFilter] = useState('');
@@ -425,8 +428,9 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
           </div>
         </div>
 
-        {canManageStudents ? (
+        {canAddStudents ? (
           <div className="flex flex-wrap items-center gap-2">
+            {canManageStudents && (
             <div className="flex items-center gap-1.5 rounded-xl bg-slate-50/50 p-1 border border-surface-border/60">
               <div className="relative">
                 <Button
@@ -471,6 +475,7 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
                 <Printer className="mr-1.5 h-3.5 w-3.5" /> Print
               </Button>
             </div>
+            )}
 
             <div className="flex items-center gap-2">
               <Button onClick={() => setBulkOpen(true)} variant="secondary" size="sm" className="h-9">
@@ -496,7 +501,7 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
               title="No students found"
               description="Student records added here become the attendance directory."
               action={
-                canManageStudents && (
+                canAddStudents && (
                   <Button size="sm" onClick={() => setAddOpen(true)}>
                     <UserPlus className="h-4 w-4" /> Add first student
                   </Button>

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
 import { createEventSchema, updateEventSchema, activitySchema } from '../validators/event.validator';
+import { roleSatisfies } from '../middleware/requireRole';
 
 function formatEvent(e: Record<string, unknown>, officers: unknown[] = [], activities: unknown[] = []) {
   return {
@@ -72,7 +73,14 @@ export async function updateEvent(req: Request, res: Response) {
   if (data.description !== undefined) update.description = data.description;
   if (data.venue !== undefined) update.venue = data.venue;
   if (data.dateRange) { update.start_date = data.dateRange.start; update.end_date = data.dateRange.end; }
-  if (data.status) update.status = data.status;
+  if (data.status) {
+    // Only the President, Secretary, Adviser, or Vice President may change an
+    // event's status (Planning / Ongoing / Completed / Cancelled).
+    if (!roleSatisfies(req.user!.role, ['President', 'Secretary'])) {
+      throw new AppError(403, 'Only the President, Secretary, or Adviser can change event status');
+    }
+    update.status = data.status;
+  }
 
   const { error } = await supabase.from('events').update(update).eq('id', req.params.id);
   if (error) throw new AppError(400, error.message);

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { PageWrapper } from '@/components/layout';
 import { StudentsPage } from './StudentsPage';
 import { MembersPage } from './MembersPage';
-import { cn } from '@/lib/utils';
+import { cn, roleSatisfies } from '@/lib/utils';
 import { GraduationCap, Users } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 
@@ -10,7 +10,7 @@ export function DirectoryPage() {
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'students' | 'members'>('students');
 
-  const canSeeMembers = user?.role === 'President' || user?.role === 'Secretary';
+  const canSeeMembers = roleSatisfies(user?.role, ['President', 'Secretary']);
 
   // If user can't see members and somehow gets to that tab, reset to students
   useEffect(() => {

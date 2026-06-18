@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
 import { createUserSchema, updateUserSchema } from '../validators/user.validator';
 import { logAction } from '../utils/auditLogger';
+import { roleSatisfies } from '../middleware/requireRole';
 
 export async function listUsers(_req: Request, res: Response) {
   const query = supabase
@@ -181,7 +182,7 @@ export async function updateUser(req: Request, res: Response) {
   
   // Security check: Only President can update others or change roles/status
   const isSelfUpdate = req.user!.userId === userId;
-  const isPresident = req.user!.role === 'President';
+  const isPresident = roleSatisfies(req.user!.role, ['President']);
   
   if (!isSelfUpdate && !isPresident) {
     throw new AppError(403, 'Insufficient permissions to update this user');

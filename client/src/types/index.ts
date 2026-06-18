@@ -1,4 +1,11 @@
-export type UserRole = 'President' | 'Secretary' | 'Officer' | 'Committee' | 'Attendance';
+export type UserRole =
+  | 'President'
+  | 'Secretary'
+  | 'Officer'
+  | 'Committee'
+  | 'Attendance'
+  | 'VicePresident'
+  | 'Adviser';
 
 export interface User {
   _id: string;

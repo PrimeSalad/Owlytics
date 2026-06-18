@@ -19,10 +19,10 @@ import type { User, UserRole } from '@/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { cn, roleLabel } from '@/lib/utils';
+import { cn, roleLabel, roleSatisfies } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 
-const roles = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance'] as const;
+const roles = ['President', 'Secretary', 'Officer', 'Committee', 'Attendance', 'VicePresident', 'Adviser'] as const;
 
 const createSchema = z.object({
   studentId: z.string().min(1, 'Access ID is required'),
@@ -60,6 +60,8 @@ const roleBadge: Record<UserRole, 'primary' | 'info' | 'warning' | 'default' | '
   Officer: 'warning',
   Committee: 'default',
   Attendance: 'success',
+  Adviser: 'primary',
+  VicePresident: 'info',
 };
 
 export function MembersPage({ isComponent = false }: { isComponent?: boolean }) {
@@ -69,7 +71,7 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
   const [roleFilter, setRoleFilter] = useState<'All' | UserRole>('All');
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const canManageAccess = user?.role === 'President';
+  const canManageAccess = roleSatisfies(user?.role, ['President']);
 
   const { data: users = [], isLoading, error } = useQuery({
     queryKey: ['users'],
@@ -93,7 +95,7 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
   }, [roleFilter, search, users]);
 
   const activeCount = users.filter((u) => u.isActive).length;
-  const managerCount = users.filter((u) => u.role === 'President' || u.role === 'Secretary').length;
+  const managerCount = users.filter((u) => roleSatisfies(u.role, ['President', 'Secretary'])).length;
 
   const createMutation = useMutation({
     mutationFn: async (values: CreateForm) => {
@@ -219,7 +221,7 @@ export function MembersPage({ isComponent = false }: { isComponent?: boolean }) 
                           <div
                             className={cn(
                               'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white',
-                              u.role === 'President' ? 'bg-brand-600' : 'bg-slate-500'
+                              roleSatisfies(u.role, ['President']) ? 'bg-brand-600' : 'bg-slate-500'
                             )}
                           >
                             {u.name.first[0]}{u.name.last[0]}
