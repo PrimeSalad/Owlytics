@@ -70,9 +70,25 @@
   to   { transform: translateX(0); }
 }
 
-.animate-fade-up  { animation: fade-up  0.3s ease-out both; }
-.animate-fade-in  { animation: fade-in  0.2s ease-out both; }
-.animate-slide-in { animation: slide-in 0.25s ease-out both; }
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-12px); }
+}
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50%      { opacity: 0.8;  transform: scale(1.08); }
+}
+
+.animate-fade-up    { animation: fade-up  0.3s ease-out both; }
+.animate-fade-in    { animation: fade-in  0.2s ease-out both; }
+.animate-slide-in   { animation: slide-in 0.25s ease-out both; }
+.animate-float      { animation: float 5s ease-in-out infinite; }
+.animate-glow-pulse { animation: glow-pulse 6s ease-in-out infinite; }
+
+/* Gradient text helper */
+.text-gradient-brand {
+  @apply bg-gradient-to-r from-brand-600 via-emerald-500 to-teal-500 bg-clip-text text-transparent;
+}
 
 /* Stagger utility — wrap children in .stagger */
 .stagger > *:nth-child(1) { animation-delay: 0ms;   }
