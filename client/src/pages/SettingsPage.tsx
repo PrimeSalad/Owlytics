@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { User, Mail, Shield, Camera, Check, X, Hash, Calendar, Lock, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { User, Mail, Shield, Camera, Check, X, Hash, Calendar, Lock, Eye, EyeOff, KeyRound, Sparkles, ExternalLink, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
 import { Button, Card, CardBody, Input, Badge } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
 import { cn, roleLabel, AVATAR_COLORS } from '@/lib/utils';
+import { setGeminiKey as saveGeminiKey, clearGeminiKey, hasGeminiKey, GEMINI_KEY_URL } from '@/lib/aiGrammar';
 
 /** Downscale + center-crop to a small square JPEG so avatars stay compact and load fast. */
 function resizeImage(file: File, size = 256): Promise<string> {
@@ -47,6 +48,27 @@ export function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
+
+  // Gemini AI key — stored only on this device (localStorage), never on the server
+  const [geminiKey, setGeminiKeyInput] = useState('');
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [geminiConnected, setGeminiConnected] = useState(() => hasGeminiKey());
+
+  const handleSaveGeminiKey = () => {
+    const k = geminiKey.trim();
+    if (!k) return toast.error('Paste your Gemini API key first');
+    saveGeminiKey(k);
+    setGeminiConnected(true);
+    setGeminiKeyInput('');
+    toast.success('Gemini API key saved on this device');
+  };
+
+  const handleRemoveGeminiKey = () => {
+    clearGeminiKey();
+    setGeminiConnected(false);
+    setGeminiKeyInput('');
+    toast('Gemini API key removed from this device');
+  };
 
   const mutation = useMutation({
     mutationFn: (data: { firstName: string; lastName: string; avatarColor?: number; avatarImage?: string | null }) =>
@@ -333,6 +355,78 @@ export function SettingsPage() {
                 <KeyRound className="h-4 w-4" />
                 Update Password
               </Button>
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* AI Writing Assistant */}
+        <Card>
+          <CardBody className="p-8 space-y-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-btn">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">AI Writing Assistant</h3>
+                  <p className="mt-0.5 text-sm text-slate-500">Connect your free Google Gemini key to fix grammar in reports.</p>
+                </div>
+              </div>
+              <Badge
+                variant="default"
+                className={cn(
+                  'font-bold uppercase tracking-wider',
+                  geminiConnected
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-slate-100 text-slate-500 border-slate-200',
+                )}
+              >
+                {geminiConnected ? 'Connected' : 'Not connected'}
+              </Badge>
+            </div>
+
+            <div className="space-y-4 border-t border-slate-100 pt-6">
+              <Input
+                label={geminiConnected ? 'Replace API Key' : 'Gemini API Key'}
+                type={showGeminiKey ? 'text' : 'password'}
+                value={geminiKey}
+                onChange={(e) => setGeminiKeyInput(e.target.value)}
+                leftIcon={<KeyRound className="h-4 w-4" />}
+                autoComplete="off"
+                placeholder={geminiConnected ? 'Paste a new key to replace the saved one…' : 'Paste your Gemini API key…'}
+                hint="Stored only on this device — never sent to our servers."
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowGeminiKey((v) => !v)}
+                    className="text-slate-400 hover:text-slate-600"
+                    aria-label={showGeminiKey ? 'Hide key' : 'Show key'}
+                  >
+                    {showGeminiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                }
+              />
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <a
+                  href={GEMINI_KEY_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline"
+                >
+                  Get a free key <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+                <div className="flex items-center gap-2">
+                  {geminiConnected && (
+                    <Button variant="secondary" onClick={handleRemoveGeminiKey}>
+                      <Trash2 className="h-4 w-4" /> Remove key
+                    </Button>
+                  )}
+                  <Button onClick={handleSaveGeminiKey} disabled={!geminiKey.trim()}>
+                    <Check className="h-4 w-4" /> {geminiConnected ? 'Update Key' : 'Save Key'}
+                  </Button>
+                </div>
+              </div>
             </div>
           </CardBody>
         </Card>

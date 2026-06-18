@@ -6,3 +6,6 @@ export { Spinner, PageSpinner } from './Spinner';
 export { Card, CardHeader, CardBody, CardTitle } from './Card';
 export { EmptyState } from './EmptyState';
 export { SectionSelector } from './SectionSelector';
+export { AiGrammarButton } from './AiGrammarButton';
+export { AiPromptButton } from './AiPromptButton';
+export { GeminiKeyDialog } from './GeminiKeyDialog';

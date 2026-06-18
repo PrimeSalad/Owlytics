@@ -28,15 +28,19 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
         {/* Overlay */}
         <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-md animate-fade-in" />
 
-        {/* Panel */}
-        <Dialog.Content
-          className={cn(
-            'fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto',
-            'rounded-2xl bg-card-sheen shadow-modal p-6 sm:p-8 border border-slate-200/70 ring-1 ring-black/5 animate-scale-in',
-            sizeMap[size],
-            className
-          )}
-        >
+        {/* Centering wrapper — flexbox keeps the panel centered even while the
+            scale-in animation animates `transform` (which would clobber a
+            translate-based centering). */}
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Panel */}
+          <Dialog.Content
+            className={cn(
+              'pointer-events-auto relative max-h-[calc(100dvh-2rem)] w-full overflow-y-auto',
+              'rounded-2xl bg-white shadow-modal p-6 sm:p-8 border border-slate-200/70 ring-1 ring-black/5 animate-scale-in',
+              sizeMap[size],
+              className
+            )}
+          >
           {/* Header */}
           {(title || description) && (
             <div className="mb-6 pr-6">
@@ -62,7 +66,8 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
           >
             <X className="h-4 w-4" />
           </Dialog.Close>
-        </Dialog.Content>
+          </Dialog.Content>
+        </div>
       </Dialog.Portal>
     </Dialog.Root>
   );
