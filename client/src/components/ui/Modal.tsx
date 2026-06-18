@@ -26,13 +26,13 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
     <Dialog.Root open={open} onOpenChange={(v) => !v && onClose()}>
       <Dialog.Portal>
         {/* Overlay */}
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm animate-fade-in" />
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-md animate-fade-in" />
 
         {/* Panel */}
         <Dialog.Content
           className={cn(
-            'fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2',
-            'rounded-2xl bg-white shadow-2xl p-6 sm:p-8 border border-slate-100 animate-fade-in',
+            'fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto',
+            'rounded-2xl bg-card-sheen shadow-modal p-6 sm:p-8 border border-slate-200/70 ring-1 ring-black/5 animate-scale-in',
             sizeMap[size],
             className
           )}

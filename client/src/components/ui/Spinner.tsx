@@ -17,11 +17,13 @@ export function Spinner({ size = 'md', className, label }: SpinnerProps) {
         fill="none"
         aria-hidden="true"
       >
-        <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+        <circle className="opacity-15" cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" />
         <path
-          className="opacity-80"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+          className="opacity-90"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          d="M21 12a9 9 0 0 0-9-9"
         />
       </svg>
       {label && <span className="text-xs text-slate-500">{label}</span>}

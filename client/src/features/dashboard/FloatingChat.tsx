@@ -71,7 +71,7 @@ export function FloatingChat() {
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
       {isOpen && (
-        <div className="flex h-[560px] w-[340px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl sm:w-[400px]">
+        <div className="flex h-[560px] max-h-[calc(100dvh-7.5rem)] w-[calc(100vw-3rem)] max-w-[340px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl sm:w-[400px] sm:max-w-[400px]">
           {/* Header */}
           <div className="flex shrink-0 items-center justify-between bg-gradient-to-r from-brand-600 to-brand-500 px-5 py-4 text-white">
             <div className="flex items-center gap-3">

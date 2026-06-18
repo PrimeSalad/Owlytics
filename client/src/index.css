@@ -20,10 +20,13 @@
     @apply font-display text-slate-900 leading-tight tracking-tight;
   }
 
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  /* Premium text selection */
+  ::selection { @apply bg-brand-500/20 text-brand-900; }
+
+  ::-webkit-scrollbar { width: 7px; height: 7px; }
   ::-webkit-scrollbar-track { @apply bg-transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-slate-200 rounded-full; }
-  ::-webkit-scrollbar-thumb:hover { @apply bg-slate-300; }
+  ::-webkit-scrollbar-thumb { @apply rounded-full bg-slate-300/70 border-2 border-solid border-transparent bg-clip-content; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-slate-400/80; }
 }
 
 @layer utilities {
@@ -37,6 +40,15 @@
 @layer components {
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
+  }
+
+  /* Shimmer skeleton — apply to a placeholder block while loading */
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-slate-100;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent;
+    content: '';
   }
 }
 
@@ -69,3 +81,13 @@
 .stagger > *:nth-child(4) { animation-delay: 180ms; }
 .stagger > *:nth-child(5) { animation-delay: 240ms; }
 .stagger > *:nth-child(6) { animation-delay: 300ms; }
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
