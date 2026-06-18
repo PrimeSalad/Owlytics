@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { PageWrapper } from '@/components/layout';
-import { Card, CardBody, Spinner } from '@/components/ui';
+import { Card, CardBody, EmptyState, Spinner } from '@/components/ui';
 import { Activity, Search, ShieldCheck, Database, Key, ExternalLink } from 'lucide-react';
 
 interface SystemLog {
@@ -189,13 +189,11 @@ export default function LogsPage() {
             {loading ? (
               <div className="flex justify-center py-16"><Spinner size="lg" /></div>
             ) : filteredLogs.length === 0 ? (
-              <div className="px-6 py-20 text-center">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted">
-                  <Activity className="h-6 w-6 text-slate-300" />
-                </div>
-                <p className="text-sm font-semibold text-slate-700">No logs found</p>
-                <p className="mt-1 text-xs text-slate-400">There are no system activities matching your current filters.</p>
-              </div>
+              <EmptyState
+                icon={Activity}
+                title="No logs found"
+                description="There are no system activities matching your current filters."
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[950px] text-sm">

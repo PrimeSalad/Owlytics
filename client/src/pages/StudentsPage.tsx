@@ -23,7 +23,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { PageWrapper } from '@/components/layout';
-import { Badge, Button, Card, CardBody, Input, Modal, Spinner } from '@/components/ui';
+import { Badge, Button, Card, CardBody, EmptyState, Input, Modal, Spinner } from '@/components/ui';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { Student } from '@/types';
@@ -491,18 +491,18 @@ export function StudentsPage({ isComponent = false }: { isComponent?: boolean })
           {isLoading ? (
             <div className="flex justify-center py-16"><Spinner size="lg" /></div>
           ) : students.length === 0 ? (
-            <div className="px-6 py-20 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted">
-                <UsersIcon className="h-6 w-6 text-slate-300" />
-              </div>
-              <p className="text-sm font-semibold text-slate-700">No students found</p>
-              <p className="mt-1 text-xs text-slate-400">Student records added here become the attendance directory.</p>
-              {canManageStudents && (
-                <Button size="sm" className="mt-4" onClick={() => setAddOpen(true)}>
-                  <UserPlus className="h-4 w-4" /> Add first student
-                </Button>
-              )}
-            </div>
+            <EmptyState
+              icon={UsersIcon}
+              title="No students found"
+              description="Student records added here become the attendance directory."
+              action={
+                canManageStudents && (
+                  <Button size="sm" onClick={() => setAddOpen(true)}>
+                    <UserPlus className="h-4 w-4" /> Add first student
+                  </Button>
+                )
+              }
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[820px] text-sm">

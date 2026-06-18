@@ -54,7 +54,7 @@ export function QRScanner({ eventId, scheduleId, sessionId, onScanSuccess }: QRS
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Run once on mount — listeners are added/removed together.
   }, []);
 
   // ── Beep ──────────────────────────────────────────────────────────
@@ -170,7 +170,7 @@ export function QRScanner({ eventId, scheduleId, sessionId, onScanSuccess }: QRS
       teardown();
       scannerRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Re-initialize the scanner only when restartToken changes.
   }, [restartToken]);
 
   // ── Controls ──────────────────────────────────────────────────────

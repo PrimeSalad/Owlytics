@@ -165,7 +165,6 @@ export async function listReports(req: Request, res: Response) {
   const status  = req.query.status  || req.query['status[]'];
   const activityId = req.query.activityId || req.query['activityId[]'];
 
-  console.log('[listReports] incoming query:', req.query);
   let q = supabase
     .from('reports')
     .select('*, profiles!author_id(id, first_name, last_name, role), report_attachments(id, url, caption, sort_order, file_type)')
@@ -178,7 +177,6 @@ export async function listReports(req: Request, res: Response) {
   
   if (eventId) {
     const ids = Array.isArray(eventId) ? (eventId as string[]) : [eventId as string];
-    console.log('[listReports] filtering by event_ids:', ids);
     q = q.in('event_id', ids);
   }
 
@@ -194,16 +192,11 @@ export async function listReports(req: Request, res: Response) {
 
   // Committee can only see their own
   if (req.user!.role === 'Committee') {
-    console.log('[listReports] restricting to author_id:', req.user!.userId);
     q = q.eq('author_id', req.user!.userId);
   }
 
   const { data, error } = await q;
-  if (error) {
-    console.error('[listReports] Supabase error:', error);
-    throw new AppError(500, error.message);
-  }
-  console.log('[listReports] found reports count:', data?.length ?? 0);
+  if (error) throw new AppError(500, error.message);
   res.json(data);
 }
 

@@ -5,7 +5,7 @@ import { createUserSchema, updateUserSchema } from '../validators/user.validator
 import { logAction } from '../utils/auditLogger';
 
 export async function listUsers(_req: Request, res: Response) {
-  let query = supabase
+  const query = supabase
     .from('profiles')
     .select(`
       id,
