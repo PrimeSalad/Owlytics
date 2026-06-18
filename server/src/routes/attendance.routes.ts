@@ -17,5 +17,5 @@ attendanceRouter.post('/scan', requireRole('Attendance'), requireSectionAccess, 
 attendanceRouter.post('/sync', requireRole('Attendance'), requireSectionAccess, syncOffline);
 attendanceRouter.get('/records/:eventId', requireRole('Secretary', 'Officer', 'President', 'Attendance'), filterByAssignedSection, getRecords);
 attendanceRouter.get('/records/:eventId/export', requireRole('Secretary', 'Officer', 'President'), filterByAssignedSection, exportRecords);
-attendanceRouter.post('/mark-absent/:scheduleId', requireRole('Secretary'), markAbsent);
+attendanceRouter.post('/mark-absent/:scheduleId', requireRole('President', 'Secretary'), markAbsent);
 attendanceRouter.get('/summary/:eventId', requireRole('Secretary', 'Officer', 'President', 'Attendance'), filterByAssignedSection, getSummary);
