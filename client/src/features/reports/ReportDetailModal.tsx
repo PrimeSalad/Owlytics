@@ -29,9 +29,12 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
   const [lightbox,    setLightbox]    = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   
-  const [isEditing,   setIsEditing]   = useState(false);
-  const [editTitle,   setEditTitle]   = useState('');
-  const [editContent, setEditContent] = useState('');
+  const [isEditing,    setIsEditing]    = useState(false);
+  const [editTitle,    setEditTitle]    = useState('');
+  const [editContent,  setEditContent]  = useState('');
+  const [editObjective, setEditObjective] = useState('');
+  const [editDuration,  setEditDuration]  = useState('');
+  const [editRemarks,   setEditRemarks]   = useState('');
 
   useEffect(() => {
     setRejectNote('');
@@ -43,6 +46,9 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
     if (report) {
       setEditTitle(report.title);
       setEditContent(report.content);
+      setEditObjective(report.objective ?? '');
+      setEditDuration(report.duration ?? '');
+      setEditRemarks(report.remarks ?? '');
     }
   }, [reportId, report]);
 
@@ -105,11 +111,31 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
       return;
     }
     try {
-      await update.mutateAsync({ id: reportId, data: { title: editTitle, content: editContent } });
+      await update.mutateAsync({
+        id: reportId,
+        data: {
+          title: editTitle,
+          content: editContent,
+          objective: editObjective,
+          duration: editDuration,
+          remarks: editRemarks,
+        },
+      });
       toast.success('Report updated');
       setIsEditing(false);
     } catch {
       toast.error('Failed to update report');
+    }
+  }
+
+  async function handleSubmitDraft() {
+    if (!reportId) return;
+    try {
+      await update.mutateAsync({ id: reportId, data: { status: 'Submitted' } });
+      toast.success('Report submitted');
+      onClose();
+    } catch {
+      toast.error('Failed to submit report');
     }
   }
 
@@ -153,12 +179,37 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
                   className="w-full font-semibold text-lg border border-brand-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-brand-50/30"
                   placeholder="Report Title"
                 />
-                <textarea 
-                  value={editContent} 
-                  onChange={e => setEditContent(e.target.value)} 
+                <textarea
+                  value={editContent}
+                  onChange={e => setEditContent(e.target.value)}
                   className="w-full text-sm leading-relaxed border border-brand-200 rounded-lg px-3 py-2 min-h-[150px] focus:outline-none focus:ring-2 focus:ring-brand-400 bg-brand-50/30"
                   placeholder="Report Content"
                 />
+                {report.type === 'Accomplishment' && (
+                  <>
+                    <textarea
+                      value={editObjective}
+                      onChange={e => setEditObjective(e.target.value)}
+                      rows={2}
+                      className="w-full text-sm border border-brand-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-brand-50/30 resize-none"
+                      placeholder="Objective"
+                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        value={editDuration}
+                        onChange={e => setEditDuration(e.target.value)}
+                        className="w-full text-sm border border-brand-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-brand-50/30"
+                        placeholder="Duration (e.g. May 18, 2026 8AM–5PM)"
+                      />
+                      <input
+                        value={editRemarks}
+                        onChange={e => setEditRemarks(e.target.value)}
+                        className="w-full text-sm border border-brand-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-brand-50/30"
+                        placeholder="Remarks"
+                      />
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-end gap-2">
                   <Button variant="secondary" size="sm" onClick={() => {
                     setIsEditing(false);
@@ -257,6 +308,12 @@ export function ReportDetailModal({ reportId, userRole, userId, onClose }: Props
                   </div>
 
                   <div className="flex gap-2 ml-auto flex-wrap justify-end">
+                    {report.status === 'Draft' && (isOwner || isAdmin) && (
+                      <Button size="sm" loading={update.isPending} onClick={handleSubmitDraft}
+                        className="bg-green-600 hover:bg-green-700 border-green-700/20">
+                        <CheckCircle2 className="h-4 w-4" /> Submit
+                      </Button>
+                    )}
                     {report.status === 'Approved' && report.type !== 'Accomplishment' && (
                       <Button variant="secondary" size="sm" loading={isExporting} onClick={handleExportPDF}>
                         <Download className="h-4 w-4" /> Export PDF
