@@ -14,6 +14,17 @@ export const createScheduleSchema = z.object({
   assignedScanners: z.array(z.string()).optional(),
 });
 
+export const updateScheduleSchema = z.object({
+  label: z.string().min(1).optional(),
+  sessions: z.array(z.object({
+    id: z.string().optional(),
+    label: z.enum(sessionLabels),
+    openAt: z.coerce.date(),
+    closeAt: z.coerce.date(),
+    gracePeriodMinutes: z.number().int().min(0).default(15),
+  })).optional(),
+});
+
 export const scanSchema = z.object({
   qrData: z.string().min(1),
   sessionId: z.string().min(1),

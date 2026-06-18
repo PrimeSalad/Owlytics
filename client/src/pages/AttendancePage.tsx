@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Calendar, ChevronDown, Clock, Plus, Search, Users, X, FileText } from 'lucide-react';
+import { AlertTriangle, Calendar, ChevronDown, Clock, Plus, Search, Users, X, FileText, Pencil } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -97,6 +97,7 @@ const scheduleSchema = z.object({
   sessions: z
     .array(
       z.object({
+        id: z.string().optional(),
         label: z.enum(SESSION_LABELS),
         openAt: z.string().min(1, 'Set an opening time'),
         closeAt: z.string().min(1, 'Set a closing time'),
@@ -113,6 +114,7 @@ export function AttendancePage() {
   const role = useAuthStore((s) => s.user?.role);
   const canManageSchedules = roleSatisfies(role, ['President', 'Secretary']);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [editSchedule, setEditSchedule] = useState<RawAttendanceSchedule | null>(null);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -381,6 +383,8 @@ export function AttendancePage() {
                       {schedules.map((schedule) => (
                         <ScheduleGroup
                           key={schedule.id}
+                          canManage={canManageSchedules}
+                          onEdit={() => setEditSchedule(schedule)}
                           now={now}
                           onSelectSession={(sessionId) => setSelectedSessionId(sessionId)}
                           recordCountsBySession={recordCountsBySession}
@@ -572,11 +576,16 @@ export function AttendancePage() {
       <ScheduleFormModal
         defaultEventId={selectedEventId}
         events={events}
-        open={scheduleOpen}
-        onClose={() => setScheduleOpen(false)}
+        schedule={editSchedule}
+        open={scheduleOpen || Boolean(editSchedule)}
+        onClose={() => {
+          setScheduleOpen(false);
+          setEditSchedule(null);
+        }}
         onSuccess={() => {
           qc.invalidateQueries({ queryKey: ['schedules', selectedEventId] });
           setScheduleOpen(false);
+          setEditSchedule(null);
         }}
       />
     </PageWrapper>
@@ -618,14 +627,18 @@ function SummaryStat({
 }
 
 function ScheduleGroup({
+  canManage,
   now,
+  onEdit,
   onSelectSession,
   recordCountsBySession,
   schedule,
   selectedSessionId,
   sessions,
 }: {
+  canManage: boolean;
   now: number;
+  onEdit: () => void;
   onSelectSession: (sessionId: string) => void;
   recordCountsBySession: Map<string, number>;
   schedule: RawAttendanceSchedule;
@@ -638,6 +651,17 @@ function ScheduleGroup({
         <p className="truncate text-xs font-bold uppercase tracking-wider text-slate-500">
           {schedule.label}
         </p>
+        {canManage && (
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label={`Edit ${schedule.label}`}
+            title="Edit schedule & times"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-brand-50 hover:text-brand-600"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       <div className="space-y-1.5">
@@ -733,16 +757,19 @@ function EmptyTableState({ hasFilters, onClear }: { hasFilters: boolean; onClear
 function ScheduleFormModal({
   defaultEventId,
   events,
+  schedule,
   onClose,
   onSuccess,
   open,
 }: {
   defaultEventId: string;
   events: Event[];
+  schedule?: RawAttendanceSchedule | null;
   onClose: () => void;
   onSuccess: () => void;
   open: boolean;
 }) {
+  const isEdit = Boolean(schedule);
   const {
     control,
     formState: { errors },
@@ -757,23 +784,29 @@ function ScheduleFormModal({
   const { append, fields, remove } = useFieldArray({ control, name: 'sessions' });
 
   useEffect(() => {
-    if (open) reset(getScheduleDefaults(defaultEventId));
-  }, [defaultEventId, open, reset]);
+    if (!open) return;
+    reset(schedule ? scheduleToForm(schedule, defaultEventId) : getScheduleDefaults(defaultEventId));
+  }, [defaultEventId, open, reset, schedule]);
 
   const mutation = useMutation({
-    mutationFn: (values: ScheduleForm) =>
-      api.post('/attendance/schedules', {
+    mutationFn: (values: ScheduleForm) => {
+      const payload = {
         eventId: values.eventId,
         label: values.label,
         sessions: values.sessions.map((session) => ({
+          id: session.id,
           closeAt: session.closeAt,
           gracePeriodMinutes: session.gracePeriodMinutes,
           label: session.label,
           openAt: session.openAt,
         })),
-      }),
+      };
+      return isEdit && schedule
+        ? api.patch(`/attendance/schedules/${schedule.id}`, payload)
+        : api.post('/attendance/schedules', payload);
+    },
     onSuccess: () => {
-      toast.success('Schedule created');
+      toast.success(isEdit ? 'Schedule updated' : 'Schedule created');
       reset(getScheduleDefaults(defaultEventId));
       onSuccess();
     },
@@ -790,7 +823,7 @@ function ScheduleFormModal({
         'error' in error.response.data &&
         typeof error.response.data.error === 'string'
           ? error.response.data.error
-          : 'Failed to create schedule';
+          : isEdit ? 'Failed to update schedule' : 'Failed to create schedule';
       toast.error(message);
     },
   });
@@ -804,7 +837,7 @@ function ScheduleFormModal({
     <Modal
       open={open}
       onClose={closeModal}
-      title="Create Schedule"
+      title={isEdit ? 'Edit Schedule' : 'Create Schedule'}
       description="Set the event and time windows scanners will use."
       size="xl"
     >
@@ -820,8 +853,9 @@ function ScheduleFormModal({
             <select
               id="schedule-event"
               {...register('eventId')}
+              disabled={isEdit}
               className={cn(
-                'h-11 w-full rounded-lg border bg-white px-3 text-sm text-slate-800 transition-all focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20',
+                'h-11 w-full rounded-lg border bg-white px-3 text-sm text-slate-800 transition-all focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
                 errors.eventId ? 'border-danger-500' : 'border-slate-200 hover:border-slate-300'
               )}
             >
@@ -937,7 +971,7 @@ function ScheduleFormModal({
             Cancel
           </Button>
           <Button type="submit" loading={mutation.isPending}>
-            Create schedule
+            {isEdit ? 'Save changes' : 'Create schedule'}
           </Button>
         </div>
       </form>
@@ -950,6 +984,33 @@ function getScheduleDefaults(defaultEventId: string): ScheduleForm {
     eventId: defaultEventId,
     label: '',
     sessions: [{ closeAt: '', gracePeriodMinutes: 15, label: 'AM In', openAt: '' }],
+  };
+}
+
+/** Format an ISO timestamp into the `YYYY-MM-DDTHH:mm` shape <input type="datetime-local"> needs (local time). */
+function toDateTimeLocal(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Build form defaults from an existing schedule so its sessions/times can be edited. */
+function scheduleToForm(schedule: RawAttendanceSchedule, defaultEventId: string): ScheduleForm {
+  const sessions = (schedule.attendance_sessions ?? []).map((s) => ({
+    id: s.id,
+    label: s.label,
+    openAt: toDateTimeLocal(s.open_at ?? s.openAt),
+    closeAt: toDateTimeLocal(s.close_at ?? s.closeAt),
+    gracePeriodMinutes: s.grace_period_minutes ?? s.gracePeriodMinutes ?? 15,
+  }));
+  return {
+    eventId: defaultEventId,
+    label: schedule.label,
+    sessions: sessions.length
+      ? sessions
+      : [{ closeAt: '', gracePeriodMinutes: 15, label: 'AM In', openAt: '' }],
   };
 }
 

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { AppError } from '../middleware/errorHandler';
-import { createScheduleSchema, scanSchema } from '../validators/attendance.validator';
+import { createScheduleSchema, updateScheduleSchema, scanSchema } from '../validators/attendance.validator';
 
 /** Human-readable time in PH timezone for scanner messages. */
 function fmtWindow(d: Date): string {
@@ -89,6 +89,61 @@ export async function createSchedule(req: Request, res: Response) {
   }
 
   res.status(201).json(schedule);
+}
+
+export async function updateSchedule(req: Request, res: Response) {
+  const scheduleId = req.params.scheduleId;
+  const data = updateScheduleSchema.parse(req.body);
+
+  const { data: existing } = await supabase
+    .from('attendance_schedules').select('id').eq('id', scheduleId).single();
+  if (!existing) throw new AppError(404, 'Schedule not found');
+
+  // Update the schedule's name
+  if (data.label !== undefined) {
+    const { error } = await supabase
+      .from('attendance_schedules').update({ label: data.label }).eq('id', scheduleId);
+    if (error) throw new AppError(400, error.message);
+  }
+
+  // Reconcile sessions: update existing ones, insert new ones, delete removed ones.
+  if (data.sessions) {
+    const { data: current } = await supabase
+      .from('attendance_sessions').select('id').eq('schedule_id', scheduleId);
+    const currentIds = new Set((current ?? []).map((s) => s.id));
+    const incomingIds = new Set(data.sessions.filter((s) => s.id).map((s) => s.id as string));
+
+    for (const s of data.sessions) {
+      const row = {
+        label: s.label, open_at: s.openAt, close_at: s.closeAt,
+        grace_period_minutes: s.gracePeriodMinutes,
+      };
+      if (s.id && currentIds.has(s.id)) {
+        const { error } = await supabase.from('attendance_sessions').update(row).eq('id', s.id);
+        if (error) throw new AppError(400, error.message);
+      } else {
+        const { error } = await supabase
+          .from('attendance_sessions').insert({ schedule_id: scheduleId, ...row });
+        if (error) throw new AppError(400, error.message);
+      }
+    }
+
+    // Removed sessions — only deletable if they have no recorded scans (FK).
+    const removed = [...currentIds].filter((id) => !incomingIds.has(id));
+    if (removed.length) {
+      const { error } = await supabase.from('attendance_sessions').delete().in('id', removed);
+      if (error) {
+        throw new AppError(400, 'Cannot remove a session that already has attendance records. Clear its scans first.');
+      }
+    }
+  }
+
+  const { data: updated } = await supabase
+    .from('attendance_schedules')
+    .select('*, attendance_sessions(*)')
+    .eq('id', scheduleId)
+    .single();
+  res.json(updated);
 }
 
 export async function getSchedules(req: Request, res: Response) {

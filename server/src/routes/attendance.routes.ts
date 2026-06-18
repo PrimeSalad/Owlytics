@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  createSchedule, getSchedules, scanQR, syncOffline,
+  createSchedule, updateSchedule, getSchedules, scanQR, syncOffline,
   getRecords, exportRecords, markAbsent, getSummary,
 } from '../controllers/attendance.controller';
 import { requireAuth } from '../middleware/requireAuth';
@@ -12,6 +12,7 @@ export const attendanceRouter = Router();
 attendanceRouter.use(requireAuth);
 
 attendanceRouter.post('/schedules', requireRole('President', 'Secretary'), createSchedule);
+attendanceRouter.patch('/schedules/:scheduleId', requireRole('President', 'Secretary'), updateSchedule);
 attendanceRouter.get('/schedules/:eventId', getSchedules);
 attendanceRouter.post('/scan', requireRole('Attendance'), requireSectionAccess, scanQR);
 attendanceRouter.post('/sync', requireRole('Attendance'), requireSectionAccess, syncOffline);
