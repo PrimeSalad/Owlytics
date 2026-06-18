@@ -25,4 +25,14 @@ export const env = {
  */
 export const allowedOrigins = env.FRONTEND_URL.split(',')
   .map((s) => s.trim())
-  .filter(Boolean);
+  .filter(Boolean)
+  // Normalize to just the origin (scheme://host[:port]) so a stray path like
+  // "/login" or a trailing slash in FRONTEND_URL still matches the browser's
+  // Origin header (which is always bare origin).
+  .map((o) => {
+    try {
+      return new URL(o).origin;
+    } catch {
+      return o.replace(/\/+$/, '');
+    }
+  });
