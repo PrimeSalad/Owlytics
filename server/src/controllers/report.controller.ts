@@ -361,7 +361,7 @@ export async function compileAccomplishment(req: Request, res: Response) {
   const { allTitles, minStart, maxEnd, sections } = await fetchCompilationData(ids, sectionOrder);
 
   // Get preparedBy name from profile if not provided
-  let prepBy = preparedBy;
+  let prepBy: string = preparedBy ?? '';
   if (!prepBy) {
     const { data: profile } = await supabase.from('profiles').select('first_name, last_name').eq('id', req.user!.userId).single();
     prepBy = profile ? `${profile.first_name} ${profile.last_name}` : req.user!.userId;
@@ -411,7 +411,7 @@ export async function compileAccomplishmentWord(req: Request, res: Response) {
 
   const { allTitles, minStart, maxEnd, sections } = await fetchCompilationData(ids, sectionOrder);
 
-  let prepBy = preparedBy;
+  let prepBy: string = preparedBy ?? '';
   if (!prepBy) {
     const { data: profile } = await supabase.from('profiles').select('first_name, last_name').eq('id', req.user!.userId).single();
     prepBy = profile ? `${profile.first_name} ${profile.last_name}` : req.user!.userId;
