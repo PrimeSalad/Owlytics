@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
-import { env } from './config/env';
+import { env, allowedOrigins } from './config/env';
 import { errorHandler } from './middleware/errorHandler';
 import { authRouter } from './routes/auth.routes';
 import { userRouter } from './routes/user.routes';
@@ -23,7 +23,16 @@ const app = express();
 
 // ── Security ──────────────────────────────────────────
 app.use(helmet());
-app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow non-browser clients (no Origin header) and any configured origin.
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  }),
+);
 
 // ── Parsing ───────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
