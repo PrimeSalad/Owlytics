@@ -3,7 +3,7 @@
 # pause after 7 days without DB activity. Pinging every 5 minutes avoids both.
 #
 # Config (repo → Settings → Secrets and variables → Actions):
-#   RENDER_URL         (variable or secret) e.g. https://owlytics-api.onrender.com
+#   RENDER_URL         (variable or secret) default https://owlytics-mzme.onrender.com
 #   SUPABASE_URL       (optional secret) direct Supabase ping as a backup
 #   SUPABASE_ANON_KEY  (optional secret)
 name: Keep Alive
@@ -24,7 +24,7 @@ jobs:
     steps:
       - name: Ping Render (also touches Supabase via /api/ping)
         env:
-          RENDER_URL: ${{ secrets.RENDER_URL || vars.RENDER_URL || 'https://owlytics-api.onrender.com' }}
+          RENDER_URL: ${{ secrets.RENDER_URL || vars.RENDER_URL || 'https://owlytics-mzme.onrender.com' }}
         run: |
           url="${RENDER_URL%/}/api/ping"
           # A cold start can take ~1 min, so retry a few times.
