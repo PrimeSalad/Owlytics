@@ -2,10 +2,8 @@
 # Render free web services sleep after ~15 min idle; Supabase free projects
 # pause after 7 days without DB activity. Pinging every 5 minutes avoids both.
 #
-# Config (repo → Settings → Secrets and variables → Actions):
-#   RENDER_URL         (variable or secret) default https://owlytics-mzme.onrender.com
-#   SUPABASE_URL       (optional secret) direct Supabase ping as a backup
-#   SUPABASE_ANON_KEY  (optional secret)
+# The Supabase anon key below is the same public key the frontend ships with
+# (role: anon, protected by RLS) — it is safe to be public.
 name: Keep Alive
 
 on:
@@ -17,32 +15,32 @@ concurrency:
   group: keep-alive
   cancel-in-progress: true
 
+env:
+  RENDER_URL: https://owlytics-mzme.onrender.com
+  SUPABASE_URL: https://mmpnxrmlihstwvtuvcgx.supabase.co
+  SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tcG54cm1saWhzdHd2dHV2Y2d4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0OTYyOTAsImV4cCI6MjA5NDA3MjI5MH0.Lwd_dq6q0rJBtqT5_RNaWr5AAId5D44RtP1Fk0WPBfQ
+
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
-      - name: Ping Render (also touches Supabase via /api/ping)
-        env:
-          RENDER_URL: ${{ secrets.RENDER_URL || vars.RENDER_URL || 'https://owlytics-mzme.onrender.com' }}
+      - name: Ping Render
         run: |
-          url="${RENDER_URL%/}/api/ping"
+          # /api/ping also touches Supabase; fall back to /api/health on older deploys.
           # A cold start can take ~1 min, so retry a few times.
           for i in 1 2 3 4; do
-            code=$(curl -s -o body.txt -w '%{http_code}' -m 90 "$url" || echo 000)
-            echo "attempt $i → HTTP $code: $(cat body.txt 2>/dev/null)"
-            [ "$code" = "200" ] && exit 0
+            for path in /api/ping /api/health; do
+              code=$(curl -s -o body.txt -w '%{http_code}' -m 90 "$RENDER_URL$path" || echo 000)
+              echo "attempt $i $path → HTTP $code: $(head -c 200 body.txt 2>/dev/null)"
+              [ "$code" = "200" ] && exit 0
+            done
             sleep 15
           done
-          echo "::warning::Render ping failed ($url)"
+          echo "::warning::Render did not respond with 200"
 
-      - name: Ping Supabase directly
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        if: env.SUPABASE_URL != '' && env.SUPABASE_ANON_KEY != ''
+      - name: Ping Supabase
         run: |
-          code=$(curl -s -o /dev/null -w '%{http_code}' -m 30 \
-            -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
-            "${SUPABASE_URL%/}/rest/v1/profiles?select=id&limit=1")
+          code=$(curl -s -o /dev/null -w '%{http_code}' -m 30             -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY"             "$SUPABASE_URL/rest/v1/profiles?select=id&limit=1")
           echo "Supabase → HTTP $code"
+          [ "$code" = "200" ] || echo "::warning::Supabase ping returned $code"
