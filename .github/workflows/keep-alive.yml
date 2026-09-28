@@ -1,0 +1,48 @@
+# Keeps the free-tier backend warm and the Supabase project from auto-pausing.
+# Render free web services sleep after ~15 min idle; Supabase free projects
+# pause after 7 days without DB activity. Pinging every 5 minutes avoids both.
+#
+# Config (repo → Settings → Secrets and variables → Actions):
+#   RENDER_URL         (variable or secret) e.g. https://owlytics-api.onrender.com
+#   SUPABASE_URL       (optional secret) direct Supabase ping as a backup
+#   SUPABASE_ANON_KEY  (optional secret)
+name: Keep Alive
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # GitHub's minimum interval; runs may be delayed a few minutes
+  workflow_dispatch:
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Render (also touches Supabase via /api/ping)
+        env:
+          RENDER_URL: ${{ secrets.RENDER_URL || vars.RENDER_URL || 'https://owlytics-api.onrender.com' }}
+        run: |
+          url="${RENDER_URL%/}/api/ping"
+          # A cold start can take ~1 min, so retry a few times.
+          for i in 1 2 3 4; do
+            code=$(curl -s -o body.txt -w '%{http_code}' -m 90 "$url" || echo 000)
+            echo "attempt $i → HTTP $code: $(cat body.txt 2>/dev/null)"
+            [ "$code" = "200" ] && exit 0
+            sleep 15
+          done
+          echo "::warning::Render ping failed ($url)"
+
+      - name: Ping Supabase directly
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        if: env.SUPABASE_URL != '' && env.SUPABASE_ANON_KEY != ''
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -m 30 \
+            -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "${SUPABASE_URL%/}/rest/v1/profiles?select=id&limit=1")
+          echo "Supabase → HTTP $code"

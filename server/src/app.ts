@@ -5,6 +5,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { env, allowedOrigins } from './config/env';
+import { supabase } from './config/supabase';
 import { errorHandler } from './middleware/errorHandler';
 import { authRouter } from './routes/auth.routes';
 import { userRouter } from './routes/user.routes';
@@ -57,6 +58,13 @@ app.use('/api/sections', sectionRouter);
 app.use('/api/messages', messageRouter);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+
+// Keep-alive target for the scheduled GitHub Action: waking Render also runs a
+// tiny DB query so Supabase sees activity and never auto-pauses.
+app.get('/api/ping', async (_req, res) => {
+  const { error } = await supabase.from('profiles').select('id', { head: true, count: 'exact' }).limit(1);
+  res.status(error ? 503 : 200).json({ status: error ? 'degraded' : 'ok', supabase: error ? error.message : 'ok' });
+});
 
 // ── Error handler (must be last) ──────────────────────
 app.use(errorHandler);
